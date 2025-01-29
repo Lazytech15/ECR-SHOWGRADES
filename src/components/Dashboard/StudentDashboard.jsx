@@ -12,6 +12,7 @@ import {
   ChevronDown 
 } from 'lucide-react';
 import LoadingSpinner from '../Loadinganimation/Loading';
+import StudentSettings from '../Studentsettings/Studentsettings';
 
 const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
 const LOCAL_API_URL = 'http://localhost:5000';
@@ -38,49 +39,46 @@ const StudentDashboard = ({ onLogout }) => {
 
   // Fetch student data and grades
   useEffect(() => {
-    const fetchStudentData = async () => {
+    const fetchData = async () => {
       try {
         const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.id) {
+        if (!userInfo || !userInfo.studentId) {
           navigate('/login');
           return;
         }
-  
-        const studentId = userInfo.id;
-  
-        const studentResponse = await fetch(`${API_URL}/students/${studentId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-  
+
+        // First fetch student details
+        const studentResponse = await fetch(`${LOCAL_API_URL}/student/${userInfo.studentId}`);
         if (!studentResponse.ok) {
           throw new Error('Failed to fetch student data');
         }
-  
-        const studentData = await studentResponse.json();
-        setStudentData(studentData);
-  
-        const gradesResponse = await fetch(`${LOCAL_API_URL}/student-grades/${studentData.studentId}`);
-  
+        const studentResult = await studentResponse.json();
+        
+        if (!studentResult.success) {
+          throw new Error(studentResult.message);
+        }
+        
+        setStudentData(studentResult.student);
+
+        // Then fetch grades
+        const gradesResponse = await fetch(`${LOCAL_API_URL}/student-grades/${userInfo.studentId}`);
         if (!gradesResponse.ok) {
           throw new Error('Failed to fetch grades');
         }
-  
+
         const gradesData = await gradesResponse.json();
         const organizedGrades = organizeGradesByTrimester(gradesData.grades);
         setGrades(organizedGrades);
+        
         setLoading(false);
-  
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(err.message);
         setLoading(false);
       }
     };
-  
-    fetchStudentData();
+
+    fetchData();
   }, [navigate]);
 
   // Organize grades by trimester
@@ -107,6 +105,7 @@ const StudentDashboard = ({ onLogout }) => {
       return acc;
     }, {});
   };
+
 
   // Calculate GWA for a course
   const calculateCourseGWA = (course) => {
@@ -221,7 +220,7 @@ const StudentDashboard = ({ onLogout }) => {
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold mb-2">Current Trisemester</h3>
           <p className="text-3xl font-bold text-purple-600">
-              {'Semester: ' + (studentData.trisemester || 'N/A')}
+              {'Semester: ' + (studentData.trimester || 'N/A')}
           </p>
         </div>
       </div>
@@ -345,12 +344,13 @@ const StudentDashboard = ({ onLogout }) => {
           </div>
         );
       case 'settings':
-        return (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold mb-4">Settings</h2>
-            <p className="text-gray-600">Settings feature coming soon...</p>
-          </div>
-        );
+        // return (
+        //   <div className="bg-white p-6 rounded-lg shadow-md">
+        //     <h2 className="text-2xl font-bold mb-4">Settings</h2>
+        //     <p className="text-gray-600">Settings feature coming soon...</p>
+        //   </div>
+        // );
+        return <StudentSettings studentData={studentData} />;
       default:
         return <DashboardContent />;
     }
@@ -446,6 +446,8 @@ const StudentDashboard = ({ onLogout }) => {
               <div className="bg-white p-4 rounded-lg shadow-md mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">{studentData.name}</h1>
                 <p className="text-gray-600">Student ID: {studentData.studentId}</p>
+                <p className="text-gray-600">Course: {studentData.course}</p>
+                <p className="text-gray-600">Section: {studentData.section}</p>
               </div>
             )}
           </div>

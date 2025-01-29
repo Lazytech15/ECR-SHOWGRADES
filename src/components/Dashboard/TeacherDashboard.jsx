@@ -9,7 +9,8 @@ import {
   ChevronRight,
   Table,
   Search,
-  Calendar} from 'lucide-react';
+  Calendar
+} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import LoadingSpinner from '../Loadinganimation/Loading';
 
@@ -17,6 +18,7 @@ const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
 const LOCAL_API_URL = 'http://localhost:5000';
 
 const TeacherDashboard = ({ onLogout }) => {
+  // State variables
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -27,7 +29,7 @@ const TeacherDashboard = ({ onLogout }) => {
   const [, setIsGradesFetching] = useState(true);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [emailErrors, setEmailErrors] = useState([]);
-  
+
   // New state variables for enhanced features
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrimester, setSelectedTrimester] = useState('all');
@@ -59,12 +61,14 @@ const TeacherDashboard = ({ onLogout }) => {
   const userInfo = JSON.parse(localStorage.getItem('teacherInfo'));
   const teacher_id = userInfo ? userInfo.id : null;
 
+  // Fetch uploaded grades when the dashboard view is active
   useEffect(() => {
     if (currentView === 'dashboard') {
       fetchUploadedGrades();
     }
   }, [currentView]);
 
+  // Process analytics and filter grades when uploaded grades change
   useEffect(() => {
     if (uploadedGrades.length > 0) {
       processAnalytics();
@@ -72,6 +76,7 @@ const TeacherDashboard = ({ onLogout }) => {
     }
   }, [uploadedGrades, searchQuery, selectedTrimester]);
 
+  // Fetch uploaded grades from the server
   const fetchUploadedGrades = async () => {
     if (teacher_id) {
       try {
@@ -88,6 +93,7 @@ const TeacherDashboard = ({ onLogout }) => {
     }
   };
 
+  // Send grade notification email to a student
   const sendGradeNotification = async (studentNum, gradeData) => {
     try {
       // Update the current progress
@@ -99,7 +105,7 @@ const TeacherDashboard = ({ onLogout }) => {
       }));
 
       // Fetch student data
-      const studentResponse = await fetch(`${API_URL}/students/${studentNum}`, {
+      const studentResponse = await fetch(`${LOCAL_API_URL}/student/${studentNum}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -111,6 +117,7 @@ const TeacherDashboard = ({ onLogout }) => {
       }
 
       const studentData = await studentResponse.json();
+      console.log('Student Data:', studentData);
       
       // Create email content
       const emailContent = `
@@ -124,7 +131,7 @@ const TeacherDashboard = ({ onLogout }) => {
           <div style="padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
               <!-- Greeting -->
               <p style="font-size: 16px; margin: 0 0 24px 0;">
-                  Dear ${studentData.name},
+                  Dear ${studentData.student.full_name},
               </p>
               
               <p style="font-size: 16px; margin: 0 0 24px 0;">
@@ -201,14 +208,14 @@ const TeacherDashboard = ({ onLogout }) => {
           </div>
       </div>`;
 
-
+      // Send email
       const emailResponse = await fetch(`${LOCAL_API_URL}/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: studentData.personalEmail,
+          to: studentData.student.email,
           subject: `Grade Update Notification - ${gradeData.COURSE_CODE}`,
           html: emailContent
         })
@@ -225,22 +232,25 @@ const TeacherDashboard = ({ onLogout }) => {
     }
   };
 
+  // Function to process analytics data
   const processAnalytics = () => {
     const today = new Date().toISOString().split('T')[0];
-    
-    const uploadsToday = uploadedGrades.filter(grade => 
+
+    // Calculate uploads today
+    const uploadsToday = uploadedGrades.filter(grade =>
       grade.created_at.split('T')[0] === today
     ).length;
 
-    const incCount = uploadedGrades.filter(grade => 
+    // Calculate counts for INC, PASSED, and FAILED records
+    const incCount = uploadedGrades.filter(grade =>
       grade.remark?.toUpperCase() === 'INC'
     ).length;
 
-    const passedCount = uploadedGrades.filter(grade => 
+    const passedCount = uploadedGrades.filter(grade =>
       grade.remark?.toUpperCase() === 'PASSED'
     ).length;
 
-    const failedCount = uploadedGrades.filter(grade => 
+    const failedCount = uploadedGrades.filter(grade =>
       grade.remark?.toUpperCase() === 'FAILED'
     ).length;
 
@@ -268,6 +278,7 @@ const TeacherDashboard = ({ onLogout }) => {
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 5);
 
+    // Set analytics state
     setAnalytics({
       uploadsToday,
       totalUploads: uploadedGrades.length,
@@ -279,13 +290,14 @@ const TeacherDashboard = ({ onLogout }) => {
     });
   };
 
+  // Function to filter grades based on search query and selected trimester
   const filterGrades = () => {
     let filtered = [...uploadedGrades];
 
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(grade => 
+      filtered = filtered.filter(grade =>
         grade.student_num.toLowerCase().includes(query) ||
         grade.course_code.toLowerCase().includes(query) ||
         grade.student_name.toLowerCase().includes(query)
@@ -294,7 +306,7 @@ const TeacherDashboard = ({ onLogout }) => {
 
     // Apply trimester filter
     if (selectedTrimester !== 'all') {
-      filtered = filtered.filter(grade => 
+      filtered = filtered.filter(grade =>
         `${grade.academic_year}-${grade.trimester}` === selectedTrimester
       );
     }
@@ -302,18 +314,20 @@ const TeacherDashboard = ({ onLogout }) => {
     // Sort by created_at
     filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+    // Set filtered grades state
     setFilteredGrades(filtered);
   };
 
+  // Function to compute grades and determine remarks
   const computeGrades = (rawData) => {
     return rawData.map(row => {
       const prelim = parseFloat(row.PRELIM_GRADE) || 0;
       const midterm = parseFloat(row.MIDTERM_GRADE) || 0;
       const final = parseFloat(row.FINAL_GRADE) || 0;
-      
+
       // Calculate GWA
       const gwa = (prelim + midterm + final) / 3;
-      
+
       // Determine remark
       let remark = 'INC';
       if (midterm && final) { // Only proceed if both midterm and final grades exist
@@ -329,9 +343,10 @@ const TeacherDashboard = ({ onLogout }) => {
     });
   };
 
+  // Function to validate and process the uploaded CSV file
   const validateAndProcessFile = (file) => {
     if (!file) return;
-    
+
     if (file.type !== 'text/csv') {
       setUploadStatus({
         success: false,
@@ -348,7 +363,7 @@ const TeacherDashboard = ({ onLogout }) => {
       try {
         const text = e.target.result;
         const parsedData = parseCSV(text);
-        
+
         if (parsedData.length < 2) {
           setUploadStatus({
             success: false,
@@ -381,37 +396,39 @@ const TeacherDashboard = ({ onLogout }) => {
     reader.readAsText(file);
   };
 
+  // Function to parse CSV text into an array of arrays
   const parseCSV = (text) => {
     const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
     const lines = text.split('\n').filter(line => line.trim());
     const result = [];
-    
+
     for (let line of lines) {
       const row = [];
       let matches;
-      
+
       while ((matches = regex.exec(line)) !== null) {
         let value = matches[1];
-        
+
         if (value.startsWith(',')) {
           value = value.substring(1);
         }
-        
+
         if (value.startsWith('"') && value.endsWith('"')) {
           value = value.substring(1, value.length - 1).replace(/""/g, '"');
         }
-        
+
         row.push(value);
       }
-      
+
       if (row.length > 0) {
         result.push(row);
       }
     }
-    
+
     return result;
   };
 
+  // Handle file drop event
   const handleDrop = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -419,23 +436,26 @@ const TeacherDashboard = ({ onLogout }) => {
     validateAndProcessFile(file);
   };
 
+  // Handle drag over event
   const handleDragOver = (event) => {
     event.preventDefault();
     event.stopPropagation();
   };
 
+  // Handle file upload via input
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     validateAndProcessFile(file);
   };
 
+  // Process CSV file and send notifications
   const processCSV = async () => {
     if (!selectedFile) return;
 
     setIsUploading(true);
     setIsEmailSending(false);
     setEmailErrors([]);
-    
+
     // Set initial upload progress
     setUploadProgress({
       studentNum: '',
@@ -469,11 +489,11 @@ const TeacherDashboard = ({ onLogout }) => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setIsEmailSending(true);
         const emailErrors = [];
-        
+
         // Reset email progress
         setCurrentEmailProgress({
           studentNum: '',
@@ -493,7 +513,7 @@ const TeacherDashboard = ({ onLogout }) => {
               name: row.STUDENT_NAME,
               current: i + 1
             }));
-            
+
             await sendGradeNotification(row.STUDENT_NUM, row);
           } catch (error) {
             emailErrors.push({
@@ -546,10 +566,12 @@ const TeacherDashboard = ({ onLogout }) => {
     }
   };
 
+  // Handle logout
   const handleLogout = () => {
     onLogout();
   };
 
+  // Sidebar item component
   const SidebarItem = ({ icon: Icon, label, active, onClick, iconSize }) => (
     <div className={`flex items-center p-2 rounded-lg cursor-pointer ${active ? 'bg-gray-200' : 'hover:bg-gray-100'}`} onClick={onClick}>
       <Icon size={iconSize} className="mr-3" />
@@ -558,9 +580,10 @@ const TeacherDashboard = ({ onLogout }) => {
   );
   
 
+  // Function to render analytic cards
   const renderAnalyticCards = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      {/* Card 1 */}
+      {/* Card 1: Uploads Today */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-gray-600">Uploads Today</h3>
@@ -568,8 +591,8 @@ const TeacherDashboard = ({ onLogout }) => {
         </div>
         <div className="text-2xl font-bold">{analytics.uploadsToday}</div>
       </div>
-  
-      {/* Card 2 */}
+
+      {/* Card 2: Total Records */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-gray-600">Total Records</h3>
@@ -577,8 +600,8 @@ const TeacherDashboard = ({ onLogout }) => {
         </div>
         <div className="text-2xl font-bold">{analytics.totalUploads}</div>
       </div>
-  
-      {/* Card 3 */}
+
+      {/* Card 3: INC Records */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-gray-600">INC Records</h3>
@@ -586,8 +609,8 @@ const TeacherDashboard = ({ onLogout }) => {
         </div>
         <div className="text-2xl font-bold">{analytics.incCount}</div>
       </div>
-  
-      {/* Card 4 */}
+
+      {/* Card 4: Pass Rate */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-gray-600">Pass Rate</h3>
@@ -600,6 +623,7 @@ const TeacherDashboard = ({ onLogout }) => {
     </div>
   );
 
+  // Function to render charts for analytics
   const renderCharts = () => {
     const trimesterChartData = Object.values(analytics.trimesterData);
     const remarkChartData = [
@@ -607,10 +631,10 @@ const TeacherDashboard = ({ onLogout }) => {
       { name: 'FAILED', value: analytics.failedCount, color: '#EF4444' },
       { name: 'INC', value: analytics.incCount, color: '#F59E0B' }
     ];
-  
+
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Chart Card 1 */}
+        {/* Chart Card 1: Grade Distribution by Trimester */}
         <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
           <div className="mb-4">
             <h3 className="text-lg font-semibold">Grade Distribution by Trimester</h3>
@@ -627,8 +651,8 @@ const TeacherDashboard = ({ onLogout }) => {
             </BarChart>
           </div>
         </div>
-  
-        {/* Chart Card 2 */}
+
+        {/* Chart Card 2: Overall Grade Status */}
         <div className="bg-white p-6 rounded-lg shadow-md overflow-hidden">
           <div className="mb-4">
             <h3 className="text-lg font-semibold">Overall Grade Status</h3>
@@ -659,8 +683,10 @@ const TeacherDashboard = ({ onLogout }) => {
   };
   
 
+  // Function to render search and filter options
   const renderSearchAndFilters = () => (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
+      {/* Search Input */}
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
         <input
@@ -671,42 +697,44 @@ const TeacherDashboard = ({ onLogout }) => {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
+      {/* Trimester Filter */}
       <select
-className="p-2 border rounded-lg"
-value={selectedTrimester}
-onChange={(e) => setSelectedTrimester(e.target.value)}
->
-<option value="all">All Trimesters</option>
-{Object.keys(analytics.trimesterData).map(key => (
-  <option key={key} value={key}>{analytics.trimesterData[key].name}</option>
-))}
-</select>
-</div>
-);
+        className="p-2 border rounded-lg"
+        value={selectedTrimester}
+        onChange={(e) => setSelectedTrimester(e.target.value)}
+      >
+        <option value="all">All Trimesters</option>
+        {Object.keys(analytics.trimesterData).map(key => (
+          <option key={key} value={key}>{analytics.trimesterData[key].name}</option>
+        ))}
+      </select>
+    </div>
+  );
 
-const renderRecentUploads = () => (
-  <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-    <div className="mb-4">
-      <h3 className="text-lg font-semibold">Recent Uploads</h3>
-    </div>
-    <div className="space-y-4">
-      {analytics.recentUploads.map((grade, index) => (
-        <div key={index} className="flex items-center justify-between border-b pb-2">
-          <div>
-            <p className="font-medium">{grade.student_name}</p>
-            <p className="text-sm text-gray-500">{grade.course_code} - {grade.course_description}</p>
+  // Function to render recent uploads
+  const renderRecentUploads = () => (
+    <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold">Recent Uploads</h3>
+      </div>
+      <div className="space-y-4">
+        {analytics.recentUploads.map((grade, index) => (
+          <div key={index} className="flex items-center justify-between border-b pb-2">
+            <div>
+              <p className="font-medium">{grade.student_name}</p>
+              <p className="text-sm text-gray-500">{grade.course_code} - {grade.course_description}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-medium">{grade.gwa}</p>
+              <p className="text-sm text-gray-500">
+                {new Date(grade.created_at).toLocaleDateString()}
+              </p>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="font-medium">{grade.gwa}</p>
-            <p className="text-sm text-gray-500">
-              {new Date(grade.created_at).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
 
 const renderDashboard = () => {
   // Function to group grades by course and upload date
@@ -725,11 +753,19 @@ const renderDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Render analytic cards */}
       {renderAnalyticCards()}
+
+      {/* Render charts */}
       {renderCharts()}
+
+      {/* Render search and filters */}
       {renderSearchAndFilters()}
+
+      {/* Render recent uploads */}
       {renderRecentUploads()}
 
+      {/* Render grouped grades */}
       <div className="overflow-x-auto">
         {Object.keys(groupedGrades).map((course) =>
           Object.keys(groupedGrades[course]).map((uploadDate) => (
@@ -912,6 +948,7 @@ const renderUploadView = () => {
   );
 };
 
+// Function to render loading states during file upload and email sending
 const renderLoadingStates = () => (
   <div className="flex flex-col items-center justify-center mt-4 space-y-2">
     <div className="flex items-center">
@@ -952,49 +989,46 @@ const renderLoadingStates = () => (
   </div>
 );
 
-
 return (
   <div className="flex h-screen bg-gray-100">
-{/* Sidebar */}
-<div className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-md transition-all duration-300 ease-in-out flex flex-col`}>
-  <div className="flex justify-between items-center p-4 border-b">
-    {isSidebarOpen && <h2 className="text-xl font-bold">Teacher Portal</h2>}
-    <button 
-      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-      className="ml-auto"
-    >
-      {isSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
-    </button>
-  </div>
+    {/* Sidebar */}
+    <div className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-md transition-all duration-300 ease-in-out flex flex-col`}>
+      <div className="flex justify-between items-center p-4 border-b">
+        {isSidebarOpen && <h2 className="text-xl font-bold">Teacher Portal</h2>}
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="ml-auto"
+        >
+          {isSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
+        </button>
+      </div>
 
-  <nav className="mt-4 space-y-2 px-4 flex-grow">
-    <SidebarItem 
-      icon={Home} 
-      label="Dashboard" 
-      active={currentView === 'dashboard'}
-      onClick={() => setCurrentView('dashboard')}
-      iconSize={24}
-    />
-    <SidebarItem 
-      icon={Upload} 
-      label="Upload CSV" 
-      active={currentView === 'upload'}
-      onClick={() => setCurrentView('upload')}
-      iconSize={24}
-    />
-  </nav>
-  
-  <div className="px-4 pb-4">
-    <SidebarItem 
-      icon={LogOut} 
-      label="Logout" 
-      onClick={handleLogout}
-      iconSize={24}
-    />
-  </div>
-</div>
-
-
+      <nav className="mt-4 space-y-2 px-4 flex-grow">
+        <SidebarItem 
+          icon={Home} 
+          label="Dashboard" 
+          active={currentView === 'dashboard'}
+          onClick={() => setCurrentView('dashboard')}
+          iconSize={24}
+        />
+        <SidebarItem 
+          icon={Upload} 
+          label="Upload CSV" 
+          active={currentView === 'upload'}
+          onClick={() => setCurrentView('upload')}
+          iconSize={24}
+        />
+      </nav>
+      
+      <div className="px-4 pb-4">
+        <SidebarItem 
+          icon={LogOut} 
+          label="Logout" 
+          onClick={handleLogout}
+          iconSize={24}
+        />
+      </div>
+    </div>
 
     {/* Main Content */}
     <div className="flex-1 overflow-y-auto p-8">

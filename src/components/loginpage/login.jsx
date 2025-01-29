@@ -1,92 +1,60 @@
-//login.jsx
+// LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Eye, EyeOff } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { Link } from 'react-router-dom';
 
-const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
 const LOCAL_API_URL = 'http://localhost:5000';
 
 const LoginPage = ({ onLogin }) => {
-  const [institutionalEmail, setInstitutionalEmail] = useState('');
-  const [upass, setUpass] = useState('');
-  const [dashboardType, setDashboardType] = useState(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // First, try external API (for student)
-      const externalResponse = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${LOCAL_API_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          institutionalEmail, 
-          upass 
+          email: username, // The backend will check both username and email
+          password: password 
         })
       });
 
-      const externalData = await externalResponse.json();
+      const data = await response.json();
 
-      // If external API (student) is successful
-      if (externalData && externalData.success) {
-        // Store student information
-        const studentInfo = {
-          id: externalData.user.id,
-          email: externalData.user.email,
-          role: 'student',
-          studentId: externalData.user.studentId
+      if (data.success) {
+        const userInfo = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+          ...(data.user.student_id && { studentId: data.user.student_id })
         };
-        localStorage.setItem('userInfo', JSON.stringify(studentInfo));
-        setDashboardType('student');
-        onLogin(true, 'student');
+
+        // Store user info in appropriate storage key based on role
+        if (data.user.role === 'student') {
+          localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        } else {
+          localStorage.setItem('teacherInfo', JSON.stringify(userInfo));
+        }
+
+        onLogin(true, data.user.role);
         navigate('/dashboard');
-        return;
       } else {
-        console.error('Login error: External data is missing or invalid');
+        Swal.fire({
+          icon: 'error',
+          title: 'Login Failed',
+          text: data.message || 'Login failed. Please check your email and password then try again.',
+          confirmButtonColor: '#3B82F6'
+        });
       }
-
-      // If external API fails, try local MySQL endpoint (for teacher)
-      const localResponse = await fetch(`${LOCAL_API_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email: institutionalEmail, 
-          password: upass 
-        })
-      });
-
-      const localData = await localResponse.json();
-
-      // If local API (teacher) is successful
-      if (localData && localData.success) {
-        const teacher_Info = {
-          id: localData.user.id,
-          email: localData.user.email,
-          name: localData.user.teacher_name,
-          role: 'teacher'
-        };
-        localStorage.setItem('teacherInfo', JSON.stringify(teacher_Info));
-        setDashboardType('teacher');
-        onLogin(true, 'teacher');
-        navigate('/dashboard');
-        return;
-      }
-
-      // If both attempts fail
-      Swal.fire({
-        icon: 'error',
-        title: 'User Not Found',
-        text: 'Please check your email and password.',
-        confirmButtonColor: '#3B82F6'
-      });
-      onLogin(false);
-
     } catch (error) {
       console.error('Login error:', error);
       Swal.fire({
@@ -95,7 +63,6 @@ const LoginPage = ({ onLogin }) => {
         text: 'An error occurred while trying to log in. Please try again.',
         confirmButtonColor: '#3B82F6'
       });
-      onLogin(false);
     }
   };
 
@@ -106,12 +73,12 @@ const LoginPage = ({ onLogin }) => {
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input 
-              type="email" 
-              placeholder="username" 
-              value={institutionalEmail} 
-              onChange={(e) => setInstitutionalEmail(e.target.value)} 
+              type="text" 
+              placeholder="Username or Email" 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
               required 
             />
@@ -122,8 +89,8 @@ const LoginPage = ({ onLogin }) => {
             <input 
               type={showPassword ? "text" : "password"} 
               placeholder="Password" 
-              value={upass} 
-              onChange={(e) => setUpass(e.target.value)} 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
               className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
               required 
             />
@@ -155,7 +122,7 @@ const LoginPage = ({ onLogin }) => {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Don't have an account? 
-            <a href="#" className="ml-2 text-blue-500 hover:text-blue-600">Sign Up</a>
+            <Link to="/register" className="ml-2 text-blue-500 hover:text-blue-600">Sign Up</Link>
           </p>
         </div>
       </div>

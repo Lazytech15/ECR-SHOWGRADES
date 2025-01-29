@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './components/loginpage/login';
+import RegistrationPage from './components/RegistrationStudent/Studentregistration';
 import StudentDashboard from './components/Dashboard/StudentDashboard';
 import TeacherDashboard from './components/Dashboard/TeacherDashboard';
 import LoadingSpinner from './components/Loadinganimation/Loading';
 
 // Protected Route Component
-const ProtectedRoute = ({ children, isAuthenticated }) => {
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+const ProtectedRoute = ({ children, isAuthenticated, isLoading }) => {
+  const location = useLocation();
+  
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  
   return children;
 };
 
@@ -19,19 +31,24 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing authentication
-    const studentInfo = localStorage.getItem('userInfo');
-    const teacherInfo = localStorage.getItem('teacherInfo');
+    const checkAuth = () => {
+      const studentInfo = localStorage.getItem('userInfo');
+      const teacherInfo = localStorage.getItem('teacherInfo');
 
-    if (studentInfo) {
-      setIsAuthenticated(true);
-      setDashboardType('student');
-    } else if (teacherInfo) {
-      setIsAuthenticated(true);
-      setDashboardType('teacher');
-    }
-    
-    setIsLoading(false);
+      if (studentInfo) {
+        setIsAuthenticated(true);
+        setDashboardType('student');
+      } else if (teacherInfo) {
+        setIsAuthenticated(true);
+        setDashboardType('teacher');
+      } else {
+        setIsAuthenticated(false);
+        setDashboardType(null);
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const handleLogin = (success, type = null) => {
@@ -46,29 +63,35 @@ function App() {
     setDashboardType(null);
   };
 
-  if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
   return (
-    <Router>
+    <Router basename="/">
       <Routes>
         <Route 
-          path="/login" 
+          path="login" 
           element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
               <LoginPage onLogin={handleLogin} />
+            )
           } 
         />
+        
         <Route 
-          path="/dashboard" 
+          path="register" 
           element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <RegistrationPage />
+            )
+          } 
+        />
+
+        <Route 
+          path="dashboard" 
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated} isLoading={isLoading}>
               {dashboardType === 'student' ? (
                 <StudentDashboard onLogout={handleLogout} />
               ) : dashboardType === 'teacher' ? (
@@ -79,13 +102,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route 
           path="/" 
-          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
+          element={
+            isLoading ? (
+              <div className="h-screen flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : (
+              <Navigate to={isAuthenticated ? "dashboard" : "login"} replace />
+            )
+          }
         />
+
         <Route 
           path="*" 
-          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
+          element={<Navigate to="/" replace />}
         />
       </Routes>
     </Router>
