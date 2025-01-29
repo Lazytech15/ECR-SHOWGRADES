@@ -9,9 +9,7 @@ import {
   ChevronRight,
   Table,
   Search,
-  Calendar,
-  Filter
-} from 'lucide-react';
+  Calendar} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import LoadingSpinner from '../Loadinganimation/Loading';
 
@@ -26,7 +24,7 @@ const TeacherDashboard = ({ onLogout }) => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [csvData, setCsvData] = useState([]);
   const [uploadedGrades, setUploadedGrades] = useState([]);
-  const [isGradesFetching, setIsGradesFetching] = useState(true);
+  const [, setIsGradesFetching] = useState(true);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [emailErrors, setEmailErrors] = useState([]);
   
@@ -850,7 +848,7 @@ const renderUploadView = () => {
                     <td className="px-4 py-2 text-sm text-gray-900 border-r border-gray-200 whitespace-nowrap text-center sticky left-0 bg-white z-10">
                       {row.STUDENT_NUM}
                     </td>
-                    {Object.entries(row).filter(([key]) => key !== 'STUDENT_NUM').map(([key, value], colIndex) => (
+                    {Object.entries(row).filter(([key]) => key !== 'STUDENT_NUM').map(([, value], colIndex) => (
                       <td
                         key={colIndex}
                         className="px-4 py-2 text-sm text-gray-900 border-r border-gray-200 whitespace-nowrap text-center"

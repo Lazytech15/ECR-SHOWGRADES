@@ -1,4 +1,3 @@
-//student.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -6,7 +5,6 @@ import {
   GraduationCap, 
   Mail,
   Settings,
-  BarChart2, 
   ChevronLeft, 
   ChevronRight,
   LogOut,
@@ -19,6 +17,7 @@ const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
 const LOCAL_API_URL = 'http://localhost:5000';
 
 const StudentDashboard = ({ onLogout }) => {
+  // State variables
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
   const [isGradesMenuOpen, setIsGradesMenuOpen] = useState(false);
@@ -29,14 +28,15 @@ const StudentDashboard = ({ onLogout }) => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Fetch user info from local storage
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  const studentId = userInfo ? userInfo.id : null;
 
-
+  // Handle logout
   const handleLogout = () => {
     onLogout();
   };
 
+  // Fetch student data and grades
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
@@ -83,6 +83,7 @@ const StudentDashboard = ({ onLogout }) => {
     fetchStudentData();
   }, [navigate]);
 
+  // Organize grades by trimester
   const organizeGradesByTrimester = (gradesData) => {
     return gradesData.reduce((acc, grade) => {
       const trimester = `Trisemester ${grade.trimester}`;
@@ -107,14 +108,16 @@ const StudentDashboard = ({ onLogout }) => {
     }, {});
   };
 
+  // Calculate GWA for a course
   const calculateCourseGWA = (course) => {
     const prelim = parseFloat(course.prelimGrade) || 0;
     const midterm = parseFloat(course.midtermGrade) || 0;
     const final = parseFloat(course.finalGrade) || 0;
     const gwa = (prelim + midterm + final) / 3;
     return gwa.toFixed(2);
-};
+  };
 
+  // Get color based on grade
   const getGradeColor = (gwa) => {
     const grade = parseFloat(gwa);
     if (grade <= 1.5) return 'text-green-600';
@@ -124,6 +127,7 @@ const StudentDashboard = ({ onLogout }) => {
     return 'text-red-600';
   };
 
+  // Get courses with low grades
   const getLowGradeCourses = () => {
     if (!grades || Object.keys(grades).length === 0) {
       return [];
@@ -132,7 +136,6 @@ const StudentDashboard = ({ onLogout }) => {
     const lowGradeCourses = [];
     Object.entries(grades).forEach(([semester, semesterGrades]) => {
       semesterGrades.forEach(course => {
-        // Skip if course has a final grade and it's not 0.00 (not INC)
         if (course.finalGrade && course.finalGrade !== '0.00') {
           return;
         }
@@ -140,7 +143,6 @@ const StudentDashboard = ({ onLogout }) => {
         let mostRecentGrade = null;
         let termType = null;
   
-        // Check grades in reverse order to get most recent
         if (course.midtermGrade && course.midtermGrade !== '0.00') {
           mostRecentGrade = parseFloat(course.midtermGrade);
           termType = 'Midterm';
@@ -149,7 +151,6 @@ const StudentDashboard = ({ onLogout }) => {
           termType = 'Prelim';
         }
   
-        // Only add courses with valid grades that are >= 2.00
         if (mostRecentGrade !== null && !isNaN(mostRecentGrade) && mostRecentGrade >= 2.00) {
           lowGradeCourses.push({
             ...course,
@@ -164,6 +165,7 @@ const StudentDashboard = ({ onLogout }) => {
     return lowGradeCourses;
   };
   
+  // Calculate overall GWA
   const calculateOverallGWA = () => {
     let totalGWA = 0;
     let totalCourses = 0;
@@ -171,7 +173,7 @@ const StudentDashboard = ({ onLogout }) => {
     Object.values(grades).forEach(semesterGrades => {
       semesterGrades.forEach(course => {
         const gwa = parseFloat(calculateCourseGWA(course));
-        if (gwa !== 5.0) { // Exclude failed subjects from GWA calculation
+        if (gwa !== 5.0) {
           totalGWA += gwa;
           totalCourses++;
         }
@@ -181,10 +183,12 @@ const StudentDashboard = ({ onLogout }) => {
     return totalCourses > 0 ? (totalGWA / totalCourses).toFixed(2) : 'N/A';
   };
 
+  // Calculate total number of courses
   const calculateTotalCourses = () => {
     return Object.values(grades).reduce((total, semesterGrades) => total + semesterGrades.length, 0);
   };
 
+  // Sidebar item component
   const SidebarItem = ({ icon: Icon, label, active, onClick, hasSubmenu, isOpen }) => (
     <div 
       onClick={onClick}
@@ -200,6 +204,7 @@ const StudentDashboard = ({ onLogout }) => {
     </div>
   );
 
+  // Dashboard content component
   const DashboardContent = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -218,7 +223,7 @@ const StudentDashboard = ({ onLogout }) => {
           <p className="text-3xl font-bold text-purple-600">
               {'Semester: ' + (studentData.trisemester || 'N/A')}
           </p>
-      </div>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -265,106 +270,105 @@ const StudentDashboard = ({ onLogout }) => {
     </div>
   );
 
-  // Function to determine the remark color
-const getRemarkColor = (remark) => {
-  if (remark === "PASSED") return "text-green-500";
-  if (remark === "INC") return "text-orange-500";
-  return "text-red-500";
-};
+  // Get remark color based on remark text
+  const getRemarkColor = (remark) => {
+    if (remark === "PASSED") return "text-green-500";
+    if (remark === "INC") return "text-orange-500";
+    return "text-red-500";
+  };
 
-const formatDate = (dateString) => {
-  const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true };
-  return new Date(dateString).toLocaleDateString('en-US', options);
-};
+  // Format date to a readable string
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
 
-
-const renderContent = () => {
-  switch (activeView) {
-    case 'dashboard':
-      return <DashboardContent />;
-    case 'grades':
-      return (
-        <div className="space-y-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold">{selectedSemester || 'Select a Semester'}</h1>
-            {/* {studentData && (
-              <p className="text-gray-600">
-                Student: {studentData.name} ({studentData.studentId})
-              </p>
-            )} */}
-          </div>
-          {selectedSemester && (
-            <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="p-3 text-left">Course</th>
-                    <th className="p-3 text-center">Section</th>
-                    <th className="p-3 text-center">Prelim</th>
-                    <th className="p-3 text-center">Midterm</th>
-                    <th className="p-3 text-center">Final</th>
-                    <th className="p-3 text-center">Remarks</th>
-                    <th className="p-3 text-center">Faculty Name</th>
-                    <th className="p-3 text-center">GWA</th>
-                    <th className="p-3 text-center">Uploaded</th>
-                    <th className="p-3 text-center">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grades[selectedSemester]?.map((course, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="p-3">
-                        <div>{course.courseCode}</div>
-                        <div className="text-sm text-gray-600">{course.subject}</div>
-                      </td>
-                      <td className="p-3 text-center">{course.section}</td>
-                      <td className="p-3 text-center">{course.prelimGrade}</td>
-                      <td className="p-3 text-center">{course.midtermGrade}</td>
-                      <td className="p-3 text-center">{course.finalGrade}</td>
-                      <td className={`p-3 text-center ${getRemarkColor(course.remark)}`}>{course.remark}</td>
-                      <td className="p-3 text-center">{course.teacher}</td>
-                      <td className={`p-3 text-center ${getGradeColor(calculateCourseGWA(course))}`}>
-                        {calculateCourseGWA(course)}
-                      </td>
-                      <td className="p-3 text-center">{formatDate(course.created)}</td>
-                      <td className="p-3 text-center">{formatDate(course.updated)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+  // Render content based on active view
+  const renderContent = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return <DashboardContent />;
+      case 'grades':
+        return (
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold">{selectedSemester || 'Select a Semester'}</h1>
             </div>
-          )}
-        </div>
-      );
-    case 'mailbox':
-      return (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold mb-4">Mailbox</h2>
-          <p className="text-gray-600">Mailbox feature coming soon...</p>
-        </div>
-      );
-    case 'settings':
-      return (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold mb-4">Settings</h2>
-          <p className="text-gray-600">Settings feature coming soon...</p>
-        </div>
-      );
-    default:
-      return <DashboardContent />;
-  }
-};
+            {selectedSemester && (
+              <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="p-3 text-left">Course</th>
+                      <th className="p-3 text-center">Section</th>
+                      <th className="p-3 text-center">Prelim</th>
+                      <th className="p-3 text-center">Midterm</th>
+                      <th className="p-3 text-center">Final</th>
+                      <th className="p-3 text-center">Remarks</th>
+                      <th className="p-3 text-center">Faculty Name</th>
+                      <th className="p-3 text-center">GWA</th>
+                      <th className="p-3 text-center">Uploaded</th>
+                      <th className="p-3 text-center">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grades[selectedSemester]?.map((course, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="p-3">
+                          <div>{course.courseCode}</div>
+                          <div className="text-sm text-gray-600">{course.subject}</div>
+                        </td>
+                        <td className="p-3 text-center">{course.section}</td>
+                        <td className="p-3 text-center">{course.prelimGrade}</td>
+                        <td className="p-3 text-center">{course.midtermGrade}</td>
+                        <td className="p-3 text-center">{course.finalGrade}</td>
+                        <td className={`p-3 text-center ${getRemarkColor(course.remark)}`}>{course.remark}</td>
+                        <td className="p-3 text-center">{course.teacher}</td>
+                        <td className={`p-3 text-center ${getGradeColor(calculateCourseGWA(course))}`}>
+                          {calculateCourseGWA(course)}
+                        </td>
+                        <td className="p-3 text-center">{formatDate(course.created)}</td>
+                        <td className="p-3 text-center">{formatDate(course.updated)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      case 'mailbox':
+        return (
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-2xl font-bold mb-4">Mailbox</h2>
+            <p className="text-gray-600">Mailbox feature coming soon...</p>
+          </div>
+        );
+      case 'settings':
+        return (
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-2xl font-bold mb-4">Settings</h2>
+            <p className="text-gray-600">Settings feature coming soon...</p>
+          </div>
+        );
+      default:
+        return <DashboardContent />;
+    }
+  };
 
+  // Display loading spinner if data is loading
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
   }
 
+  // Display error message if there is an error
   if (error) {
     return <div className="flex h-screen items-center justify-center text-red-500">Error: {error}</div>;
   }
+
+  // Main component render
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-md transition-all duration-300 ease-in-out relative`}>
         <div className="flex justify-between items-center p-4 border-b">
           {isSidebarOpen && <h2 className="text-xl font-bold">Student Portal</h2>}
@@ -435,10 +439,8 @@ const renderContent = () => {
         </nav>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header with student info */}
           <div className="mb-6">
             {studentData && (
               <div className="bg-white p-4 rounded-lg shadow-md mb-6">
@@ -447,23 +449,10 @@ const renderContent = () => {
               </div>
             )}
           </div>
-
-          {/* Dynamic content based on active view */}
           {renderContent()}
         </div>
       </div>
 
-      {/* Loading Overlay */}
-      {/* {loading && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-            <p className="mt-4 text-gray-700">Loading...</p>
-          </div>
-        </div>
-      )} */}
-
-      {/* Error Toast */}
       {error && (
         <div className="fixed bottom-4 right-4 bg-red-100 border-l-4 border-red-500 p-4 rounded shadow-lg">
           <div className="flex items-center">
@@ -477,4 +466,3 @@ const renderContent = () => {
 };
 
 export default StudentDashboard;
-          
