@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+//teacherdashboard.jsx
+import React, { useState, useEffect, useContext } from 'react';
 import { 
   Home, 
   GraduationCap, 
@@ -13,9 +14,10 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import LoadingSpinner from '../Loadinganimation/Loading';
+import { useWebSocket } from '../WebSocketManager/Websocketmanager';
 
-const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
-const LOCAL_API_URL = 'http://localhost:5000';
+// const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
+const API_URL = 'http://localhost:5000/api';
 
 const TeacherDashboard = ({ onLogout }) => {
   // State variables
@@ -29,6 +31,7 @@ const TeacherDashboard = ({ onLogout }) => {
   const [, setIsGradesFetching] = useState(true);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [emailErrors, setEmailErrors] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   // New state variables for enhanced features
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,14 +79,69 @@ const TeacherDashboard = ({ onLogout }) => {
     }
   }, [uploadedGrades, searchQuery, selectedTrimester]);
 
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+    // Add WebSocket context
+    const ws = useContext(useWebSocket);
+
+    // Add WebSocket message handler
+    useEffect(() => {
+      if (!ws) return;
+  
+      const handleWebSocketMessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          
+          if (message.type === 'database_update') {
+            const { changes } = message;
+            
+            // Handle different types of updates
+            if (changes.grades_update || changes.grades_insert || changes.grades_delete) {
+              // Refresh grades data
+              fetchUploadedGrades();
+            }
+  
+            // Handle specific student updates
+            if (changes.students_update) {
+              // Refresh specific student data if needed
+              const updatedStudentIds = changes.students_update;
+              // You can implement specific refresh logic here
+            }
+          }
+        } catch (error) {
+          console.error('Error handling WebSocket message:', error);
+        }
+      };
+  
+      // Add WebSocket event listeners
+      ws.addEventListener('message', handleWebSocketMessage);
+  
+      // Cleanup function
+      return () => {
+        ws.removeEventListener('message', handleWebSocketMessage);
+      };
+    }, [ws]);
+
   // Fetch uploaded grades from the server
   const fetchUploadedGrades = async () => {
     if (teacher_id) {
       try {
-        const response = await fetch(`${LOCAL_API_URL}/teacher-grades?teacher_id=${encodeURIComponent(teacher_id)}`);
+        const response = await fetch(`${API_URL}/grades?teacherId=${encodeURIComponent(teacher_id)}`);
         const data = await response.json();
         if (data.success) {
           setUploadedGrades(data.grades);
+          // Process analytics after updating grades
+          processAnalytics();
+          filterGrades();
         }
       } catch (error) {
         console.error('Error fetching grades:', error);
@@ -96,7 +154,6 @@ const TeacherDashboard = ({ onLogout }) => {
   // Send grade notification email to a student
   const sendGradeNotification = async (studentNum, gradeData) => {
     try {
-      // Update the current progress
       setCurrentEmailProgress(prev => ({
         ...prev,
         studentNum: studentNum,
@@ -104,20 +161,23 @@ const TeacherDashboard = ({ onLogout }) => {
         current: prev.current + 1
       }));
 
-      // Fetch student data
-      const studentResponse = await fetch(`${LOCAL_API_URL}/student/${studentNum}`, {
-        method: 'GET',
+      const responses = await fetch(`${API_URL}/auth`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'get-alldata', studentId: gradeData.STUDENT_NUM })
       });
-
-      if (!studentResponse.ok) {
-        throw new Error(`Failed to fetch student data for ${studentNum}`);
+      
+      if (!responses.ok) {
+        throw new Error('Failed to fetch student data');
       }
-
-      const studentData = await studentResponse.json();
-      console.log('Student Data:', studentData);
+      
+      const studentData = await responses.json();
+      if (!studentData.success) {
+        throw new Error('Failed to fetch student data: ' + studentData.message);
+      }
+      
       
       // Create email content
       const emailContent = `
@@ -207,25 +267,33 @@ const TeacherDashboard = ({ onLogout }) => {
               </div>
           </div>
       </div>`;
-
-      // Send email
-      const emailResponse = await fetch(`${LOCAL_API_URL}/send-email`, {
+  
+      // Send email using the /api/communicate endpoint
+      const response = await fetch(`${API_URL}/communicate`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          to: studentData.student.email,
-          subject: `Grade Update Notification - ${gradeData.COURSE_CODE}`,
-          html: emailContent
+          type: 'email',
+          data: {
+            to: studentData.student.email,
+            subject: `Grade Update Notification - ${gradeData.COURSE_CODE}`,
+            content: emailContent
+          }
         })
       });
-
-      if (!emailResponse.ok) {
-        const errorData = await emailResponse.json();
-        throw new Error(`Failed to send email to ${studentData.email}: ${errorData.message || emailResponse.statusText}`);
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to send email: ${errorData.message || response.statusText}`);
       }
-
+  
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error('Email sending failed');
+      }
+  
     } catch (error) {
       console.error('Error sending grade notification:', error);
       throw error; // Propagate error to processCSV
@@ -456,7 +524,6 @@ const TeacherDashboard = ({ onLogout }) => {
     setIsEmailSending(false);
     setEmailErrors([]);
 
-    // Set initial upload progress
     setUploadProgress({
       studentNum: '',
       name: '',
@@ -464,12 +531,11 @@ const TeacherDashboard = ({ onLogout }) => {
       total: csvData.length
     });
 
-    // Create FormData and append the file
     const formData = new FormData();
     formData.append('file', selectedFile);
 
     try {
-      // Update progress for each record being processed
+      // Update progress for each record
       for (let i = 0; i < csvData.length; i++) {
         const currentRecord = csvData[i];
         setUploadProgress(prev => ({
@@ -478,12 +544,10 @@ const TeacherDashboard = ({ onLogout }) => {
           name: currentRecord.STUDENT_NAME,
           current: i + 1
         }));
-
-        // Simulate processing time for each record
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      const response = await fetch(`${LOCAL_API_URL}/upload-grades`, {
+      const response = await fetch(`${API_URL}/grades`, {
         method: 'POST',
         body: formData
       });
@@ -494,7 +558,6 @@ const TeacherDashboard = ({ onLogout }) => {
         setIsEmailSending(true);
         const emailErrors = [];
 
-        // Reset email progress
         setCurrentEmailProgress({
           studentNum: '',
           name: '',
@@ -502,11 +565,10 @@ const TeacherDashboard = ({ onLogout }) => {
           total: csvData.length
         });
 
-        // Send email notifications to all students in the CSV
+        // Send email notifications
         for (let i = 0; i < csvData.length; i++) {
           const row = csvData[i];
           try {
-            // Update current email progress
             setCurrentEmailProgress(prev => ({
               ...prev,
               studentNum: row.STUDENT_NUM,
@@ -533,15 +595,15 @@ const TeacherDashboard = ({ onLogout }) => {
         });
 
         setUploadStatus({
-          success: data.success,
-          message: `${data.message} ${emailErrors.length === 0 ? 'All notifications sent successfully.' 
+          success: true,
+          message: `Upload successful. ${emailErrors.length === 0 ? 'All notifications sent successfully.' 
             : `${csvData.length - emailErrors.length} out of ${csvData.length} notifications sent.`}`,
-          rowsAffected: data.rowsAffected
         });
 
         setSelectedFile(null);
         setCsvData([]);
-        fetchUploadedGrades();
+        
+        // No need to manually fetch grades here as WebSocket will trigger the update
       } else {
         setUploadStatus({
           success: false,
@@ -578,7 +640,34 @@ const TeacherDashboard = ({ onLogout }) => {
       {isSidebarOpen && <span className="text-sm font-medium">{label}</span>}
     </div>
   );
-  
+
+  const NavigationItem = ({ icon: Icon, label, active, onClick }) => {
+    if (isMobile) {
+      return (
+        <button 
+          onClick={onClick}
+          className={`flex flex-col items-center justify-center flex-1 py-2 ${
+            active ? 'text-blue-600' : 'text-gray-600'
+          }`}
+        >
+          <Icon size={24} className="mb-1" />
+          <span className="text-xs">{label}</span>
+        </button>
+      );
+    }
+
+    return (
+      <div 
+        className={`flex items-center p-2 rounded-lg cursor-pointer ${
+          active ? 'bg-gray-200' : 'hover:bg-gray-100'
+        }`} 
+        onClick={onClick}
+      >
+        <Icon size={24} className="mr-3" />
+        {isSidebarOpen && <span className="text-sm font-medium">{label}</span>}
+      </div>
+    );
+  };  
 
   // Function to render analytic cards
   const renderAnalyticCards = () => (
@@ -989,61 +1078,86 @@ const renderLoadingStates = () => (
   </div>
 );
 
-return (
-  <div className="flex h-screen bg-gray-100">
-    {/* Sidebar */}
-    <div className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-md transition-all duration-300 ease-in-out flex flex-col`}>
-      <div className="flex justify-between items-center p-4 border-b">
-        {isSidebarOpen && <h2 className="text-xl font-bold">Teacher Portal</h2>}
-        <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="ml-auto"
-        >
-          {isSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
-        </button>
-      </div>
 
-      <nav className="mt-4 space-y-2 px-4 flex-grow">
-        <SidebarItem 
-          icon={Home} 
-          label="Dashboard" 
-          active={currentView === 'dashboard'}
-          onClick={() => setCurrentView('dashboard')}
-          iconSize={24}
-        />
-        <SidebarItem 
-          icon={Upload} 
-          label="Upload CSV" 
-          active={currentView === 'upload'}
-          onClick={() => setCurrentView('upload')}
-          iconSize={24}
-        />
-      </nav>
-      
-      <div className="px-4 pb-4">
-        <SidebarItem 
-          icon={LogOut} 
-          label="Logout" 
-          onClick={handleLogout}
-          iconSize={24}
-        />
+return (
+  <div className="flex flex-col h-screen bg-gray-100 md:flex-row">
+    {/* Sidebar for desktop */}
+    {!isMobile && (
+      <div className={`hidden md:flex ${
+        isSidebarOpen ? 'w-64' : 'w-20'
+      } bg-white shadow-md transition-all duration-300 ease-in-out flex-col`}>
+        <div className="flex justify-between items-center p-4 border-b">
+          {isSidebarOpen && <h2 className="text-xl font-bold">Teacher Portal</h2>}
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="ml-auto"
+          >
+            {isSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
+          </button>
+        </div>
+
+        <nav className="mt-4 space-y-2 px-4 flex-grow">
+          <NavigationItem 
+            icon={Home} 
+            label="Dashboard" 
+            active={currentView === 'dashboard'}
+            onClick={() => setCurrentView('dashboard')}
+          />
+          <NavigationItem 
+            icon={Upload} 
+            label="Upload CSV" 
+            active={currentView === 'upload'}
+            onClick={() => setCurrentView('upload')}
+          />
+        </nav>
+        
+        <div className="px-4 pb-4">
+          <NavigationItem 
+            icon={LogOut} 
+            label="Logout" 
+            onClick={handleLogout}
+          />
+        </div>
       </div>
-    </div>
+    )}
 
     {/* Main Content */}
-    <div className="flex-1 overflow-y-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">
+    <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">
         {currentView === 'dashboard' ? 'Teacher Dashboard' : 'Upload Grades'}
       </h1>
       
       {currentView === 'dashboard' && (
-        <h2 className="text-xl font-semibold mb-4">
+        <h2 className="text-lg md:text-xl font-semibold mb-4">
           {`Welcome, ${userInfo ? userInfo.name : 'Teacher'}  (${userInfo.id})`}
         </h2>
       )}
       
       {currentView === 'dashboard' ? renderDashboard() : renderUploadView()}
     </div>
+
+    {/* Bottom Navigation for Mobile */}
+    {isMobile && (
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex items-center justify-around shadow-lg">
+        <NavigationItem 
+          icon={Home} 
+          label="Dashboard" 
+          active={currentView === 'dashboard'}
+          onClick={() => setCurrentView('dashboard')}
+        />
+        <NavigationItem 
+          icon={Upload} 
+          label="Upload" 
+          active={currentView === 'upload'}
+          onClick={() => setCurrentView('upload')}
+        />
+        <NavigationItem 
+          icon={LogOut} 
+          label="Logout" 
+          onClick={handleLogout}
+        />
+      </nav>
+    )}
   </div>
 );
 };

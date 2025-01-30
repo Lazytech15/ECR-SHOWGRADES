@@ -16,12 +16,13 @@ const LoginPage = ({ onLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${LOCAL_API_URL}/login`, {
+      const response = await fetch(`${LOCAL_API_URL}/api/auth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
+          action: 'login',
           email: username, // The backend will check both username and email
           password: password 
         })
@@ -39,19 +40,14 @@ const LoginPage = ({ onLogin }) => {
         };
 
         // Store user info in appropriate storage key based on role
-        if (data.user.role === 'student') {
-          localStorage.setItem('userInfo', JSON.stringify(userInfo));
-        } else {
-          localStorage.setItem('teacherInfo', JSON.stringify(userInfo));
-        }
-
+        localStorage.setItem(data.user.role === 'student' ? 'userInfo' : 'teacherInfo', JSON.stringify(userInfo));
         onLogin(true, data.user.role);
         navigate('/dashboard');
       } else {
         Swal.fire({
           icon: 'error',
           title: 'Login Failed',
-          text: data.message || 'Login failed. Please check your email and password then try again.',
+          text: data.message || 'Login failed. Please check your credentials and try again.',
           confirmButtonColor: '#3B82F6'
         });
       }

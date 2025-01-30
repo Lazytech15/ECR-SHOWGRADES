@@ -5,6 +5,7 @@ import RegistrationPage from './components/RegistrationStudent/Studentregistrati
 import StudentDashboard from './components/Dashboard/StudentDashboard';
 import TeacherDashboard from './components/Dashboard/TeacherDashboard';
 import LoadingSpinner from './components/Loadinganimation/Loading';
+import {  WebSocketProvider } from './components/WebSocketManager/Websocketmanager';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, isAuthenticated, isLoading }) => {
@@ -64,6 +65,7 @@ function App() {
   };
 
   return (
+    <WebSocketProvider>
     <Router basename="/">
       <Routes>
         <Route 
@@ -122,6 +124,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </WebSocketProvider>
   );
 }
 

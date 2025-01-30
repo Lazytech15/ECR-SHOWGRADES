@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle2, Lock, User } from 'lucide-react';
+import { useWebSocket } from '../WebSocketManager/Websocketmanager';
+
+const API_URL = 'http://localhost:5000/api';
 
 const StudentSettings = ({ studentData }) => {
+  const { isConnected } = useWebSocket();
   const [formData, setFormData] = useState({
+    studentId: studentData?.studentId || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -13,6 +18,47 @@ const StudentSettings = ({ studentData }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  useEffect(() => {
+    const handleWebSocketMessage = (event) => {
+      const data = event.detail;
+      if (data.type === 'database_update' && 
+          data.changes?.students_update?.includes(studentData?.studentId)) {
+        fetchStudentData();
+      }
+    };
+
+    window.addEventListener('websocket-message', handleWebSocketMessage);
+    return () => {
+      window.removeEventListener('websocket-message', handleWebSocketMessage);
+    };
+  }, [studentData?.studentId]);
+
+  const fetchStudentData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'get-alldata',
+          studentId: studentData?.studentId
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.student) {
+        setFormData(prev => ({
+          ...prev,
+          section: data.student.section || '',
+          trimester: data.student.trimester || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching student data:', error);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -37,24 +83,25 @@ const StudentSettings = ({ studentData }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/update-student', {
+      const response = await fetch(`${API_URL}/auth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          studentId: studentData.studentId,
+          action: 'update',
+          studentId: formData.studentId,
           currentPassword: formData.currentPassword,
           newPassword: formData.newPassword,
-          section: formData.section,
-          trimester: formData.trimester
+          newSection: formData.section,
+          newTrimester: formData.trimester
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setSuccess(data.message);
+        setSuccess(data.message || 'Settings updated successfully');
         setFormData({
           ...formData,
           currentPassword: '',
@@ -62,10 +109,11 @@ const StudentSettings = ({ studentData }) => {
           confirmPassword: ''
         });
       } else {
-        setError(data.message);
+        setError(data.message || 'Failed to update settings');
       }
     } catch (err) {
       setError('Failed to update settings. Please try again.');
+      console.error('Update error:', err);
     } finally {
       setLoading(false);
     }
