@@ -1,34 +1,28 @@
-// LoginPage.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Lock, User, Eye, EyeOff } from 'lucide-react';
-import Swal from 'sweetalert2';
-import { Link } from 'react-router-dom';
+import { useState } from "react"
+import { Eye, EyeOff, Lock, User, ChevronUp } from "lucide-react"
 
-const LOCAL_API_URL = 'http://localhost:5000';
-
-const LoginPage = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
+function LoginPage({ onLogin }) {
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     try {
-      const response = await fetch(`${LOCAL_API_URL}/api/auth`, {
-        method: 'POST',
+      const response = await fetch("http://localhost:5000/api/auth", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
-          action: 'login',
-          email: username, // The backend will check both username and email
-          password: password 
-        })
-      });
+        body: JSON.stringify({
+          action: "login",
+          email: username,
+          password: password,
+        }),
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (data.success) {
         const userInfo = {
@@ -36,94 +30,139 @@ const LoginPage = ({ onLogin }) => {
           email: data.user.email,
           name: data.user.name,
           role: data.user.role,
-          ...(data.user.student_id && { studentId: data.user.student_id })
-        };
+          ...(data.user.student_id && { studentId: data.user.student_id }),
+        }
 
-        // Store user info in appropriate storage key based on role
-        localStorage.setItem(data.user.role === 'student' ? 'userInfo' : 'teacherInfo', JSON.stringify(userInfo));
-        onLogin(true, data.user.role);
-        navigate('/dashboard');
+        localStorage.setItem(
+          data.user.role === "student" ? "userInfo" : "teacherInfo",
+          JSON.stringify(userInfo)
+        )
+        onLogin(true, data.user.role)
       } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Login Failed',
-          text: data.message || 'Login failed. Please check your credentials and try again.',
-          confirmButtonColor: '#3B82F6'
-        });
+        alert(data.message || "Login failed. Please check your credentials.")
       }
     } catch (error) {
-      console.error('Login error:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Login Failed',
-        text: 'An error occurred while trying to log in. Please try again.',
-        confirmButtonColor: '#3B82F6'
-      });
+      console.error("Login error:", error)
+      alert("An error occurred while trying to log in. Please try again.")
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="w-full max-w-md bg-white shadow-md rounded-xl p-8">
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Welcome Back</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input 
-              type="text" 
-              placeholder="Username or Email" 
-              value={username} 
-              onChange={(e) => setUsername(e.target.value)} 
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-              required 
-            />
-          </div>
-          
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input 
-              type={showPassword ? "text" : "password"} 
-              placeholder="Password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-              required 
-            />
-            <button 
-              type="button" 
-              onClick={() => setShowPassword(!showPassword)} 
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <label className="flex items-center">
-              <input type="checkbox" className="mr-2 rounded text-blue-500 focus:ring-blue-400" />
-              <span className="text-gray-600">Remember me</span>
-            </label>
-            <a href="#" className="text-blue-500 hover:text-blue-600 text-sm">Forgot password?</a>
-          </div>
-          
-          <button 
-            type="submit" 
-            className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-          >
-            Sign In
-          </button>
-        </form>
-        
-        {/* <div className="mt-6 text-center">
-          <p className="text-gray-600">
-            Don't have an account? 
-            <Link to="/register" className="ml-2 text-blue-500 hover:text-blue-600">Sign Up</Link>
+    <div className="flex min-h-screen bg-white">
+      {/* Desktop View */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('/login-bg.jpg')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-blue-900/90" />
+        <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
+          <h1 className="text-5xl font-bold leading-tight mb-4">
+            Student Grade
+            <br />
+            Management System
+          </h1>
+          <p className="text-blue-100 text-lg">
+            Access your academic records and track your progress with our
+            comprehensive grading system
           </p>
-        </div> */}
+        </div>
+      </div>
+
+      {/* Mobile View */}
+      <div className="w-full lg:w-1/2 relative h-screen overflow-hidden">
+        {/* Welcome Screen */}
+        <div className="lg:hidden flex flex-col items-center justify-center h-full px-6 text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Welcome to SGMS
+          </h1>
+          <p className="text-gray-600 mb-8">
+            Your comprehensive student grade management system
+          </p>
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="flex items-center gap-2 bg-blue-500 text-white px-8 py-3 rounded-full hover:bg-blue-600 transition-all duration-300"
+          >
+            Login <ChevronUp className={`transform ${isFormOpen ? 'rotate-180' : ''} transition-transform duration-300`} />
+          </button>
+        </div>
+
+        {/* Sliding Login Form */}
+        <div
+          className={`absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-lg transform transition-transform duration-500 ease-in-out ${
+            isFormOpen ? "translate-y-0" : "translate-y-full"
+          } lg:translate-y-0 lg:static lg:shadow-none lg:rounded-none flex items-center justify-center`}
+        >
+          <div className="relative w-full max-w-md mx-auto px-6 py-12 flex flex-col justify-center items-center h-[100vh] text-center lg:text-left lg:items-start">
+            {/* Pull Bar for Mobile */}
+            <div className="lg:hidden absolute left-1/2 -translate-x-1/2 -top-8 w-12 h-1.5 bg-gray-300 rounded-full mb-8" />
+
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">
+              Welcome Back
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-6 w-full">
+              <div className="relative">
+                <User
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
+                <input
+                  type="text"
+                  placeholder="Username or Email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required
+                />
+              </div>
+
+              <div className="relative">
+                <Lock
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                </label>
+                <button
+                  type="button"
+                  className="text-sm text-blue-500 hover:text-blue-600"
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition duration-300 font-medium"
+              >
+                Sign In
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default LoginPage;
+export default LoginPage
