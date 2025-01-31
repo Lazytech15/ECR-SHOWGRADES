@@ -115,12 +115,12 @@ const LoginPage = ({ onLogin }) => {
           </button>
         </form>
         
-        <div className="mt-6 text-center">
+        {/* <div className="mt-6 text-center">
           <p className="text-gray-600">
             Don't have an account? 
             <Link to="/register" className="ml-2 text-blue-500 hover:text-blue-600">Sign Up</Link>
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

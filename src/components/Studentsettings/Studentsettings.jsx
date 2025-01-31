@@ -12,7 +12,9 @@ const StudentSettings = ({ studentData }) => {
     newPassword: '',
     confirmPassword: '',
     section: studentData?.section || '',
-    trimester: studentData?.trimester || ''
+    trimester: studentData?.trimester || '',
+    course: studentData?.course || '',
+    email: studentData?.email || ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -52,7 +54,9 @@ const StudentSettings = ({ studentData }) => {
         setFormData(prev => ({
           ...prev,
           section: data.student.section || '',
-          trimester: data.student.trimester || ''
+          trimester: data.student.trimester || '',
+          course: data.student.course || '',
+          email: data.student.email || ''
         }));
       }
     } catch (error) {
@@ -94,7 +98,9 @@ const StudentSettings = ({ studentData }) => {
           currentPassword: formData.currentPassword,
           newPassword: formData.newPassword,
           newSection: formData.section,
-          newTrimester: formData.trimester
+          newTrimester: formData.trimester,
+          newCourse: formData.course,
+          newEmail: formData.email
         }),
       });
 
@@ -135,6 +141,28 @@ const StudentSettings = ({ studentData }) => {
               <h3 className="text-lg font-semibold">Personal Information</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Course</label>
+                  <input
+                    type="text"
+                    name="course"
+                    value={formData.course}
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-1">Section</label>
                   <input

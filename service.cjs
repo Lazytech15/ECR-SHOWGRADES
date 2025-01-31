@@ -158,7 +158,7 @@ app.post('/api/auth', async (req, res) => {
         return res.json({ success: true, credentials: { username, password: plainPassword } });
 
         case 'update':
-          const { studentId: updateId, currentPassword, newPassword, newSection, newTrimester } = data;
+          const { studentId: updateId, currentPassword, newPassword, newSection, newTrimester, newEmail, newCourse } = data;
           
             const [studentToUpdate] = await connection.promise().query(
               'SELECT * FROM students WHERE student_id = ?',
@@ -178,6 +178,8 @@ app.post('/api/auth', async (req, res) => {
             }
             if (newSection) updates.section = newSection;
             if (newTrimester) updates.trimester = newTrimester;
+            if (newEmail) updates.email = newEmail;
+            if (newCourse) updates.course = newCourse;
         
             if (Object.keys(updates).length === 0) {
               return res.json({ success: true, message: 'No changes to update' });

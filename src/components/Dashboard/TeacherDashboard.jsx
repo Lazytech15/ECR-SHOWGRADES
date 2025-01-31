@@ -15,8 +15,8 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import LoadingSpinner from '../Loadinganimation/Loading';
 import { useWebSocket } from '../WebSocketManager/Websocketmanager';
+import sendEmail,{ EmailTemplates } from '../Sendemail/Sendemail';
 
-// const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
 const API_URL = 'http://localhost:5000/api';
 
 const TeacherDashboard = ({ onLogout }) => {
@@ -154,13 +154,6 @@ const TeacherDashboard = ({ onLogout }) => {
   // Send grade notification email to a student
   const sendGradeNotification = async (studentNum, gradeData) => {
     try {
-      setCurrentEmailProgress(prev => ({
-        ...prev,
-        studentNum: studentNum,
-        name: gradeData.STUDENT_NAME || 'Unknown',
-        current: prev.current + 1
-      }));
-
       const responses = await fetch(`${API_URL}/auth`, {
         method: 'POST',
         headers: {
@@ -177,126 +170,40 @@ const TeacherDashboard = ({ onLogout }) => {
       if (!studentData.success) {
         throw new Error('Failed to fetch student data: ' + studentData.message);
       }
-      
-      
-      // Create email content
-      const emailContent = `
-      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; line-height: 1.6;">
-          <!-- Header -->
-          <div style="background-color: #003366; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="color: #ffffff; font-size: 22px; font-weight: 600; margin: 0;">Academic Performance Update</h1>
-          </div>
-          
-          <!-- Main Content -->
-          <div style="padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
-              <!-- Greeting -->
-              <p style="font-size: 16px; margin: 0 0 24px 0;">
-                  Dear ${studentData.student.full_name},
-              </p>
-              
-              <p style="font-size: 16px; margin: 0 0 24px 0;">
-                  We are writing to inform you that your academic records have been updated for the following course:
-              </p>
-              
-              <!-- Course Information -->
-              <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
-                  <div style="display: grid; grid-gap: 16px;">
-                      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                          <span style="color: #4b5563; font-weight: 500;">Course: </span>
-                          <span style="font-weight: 600;">${gradeData.COURSE_CODE} - (${gradeData.COURSE_DESCRIPTION})</span>
-                      </div>
-                      
-                      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                          <span style="color: #4b5563; font-weight: 500;">Academic Year: </span>
-                          <span style="font-weight: 600;">${gradeData.ACADEMIC_YEAR}</span>
-                      </div>
-                      
-                      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                          <span style="color: #4b5563; font-weight: 500;">Trimester: </span>
-                          <span style="font-weight: 600;">${gradeData.TRIMESTER}</span>
-                      </div>
-                      
-                      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                          <span style="color: #4b5563; font-weight: 500;">Section: </span>
-                          <span style="font-weight: 600;">${gradeData.SECTION}</span>
-                      </div>
-                      
-                      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                          <span style="color: #4b5563; font-weight: 500;">Faculty: </span>
-                          <span style="font-weight: 600;">${gradeData.FACULTY_NAME}</span>
-                      </div>
-                  </div>
-                  
-                  <!-- Grades Section -->
-                  <div style="margin-top: 24px;">
-                      <h2 style="font-size: 16px; font-weight: 600; color: #1a1a1a; margin: 0 0 16px 0;">Grade Summary</h2>
-                      <div style="display: grid; grid-gap: 12px;">
-                          <div style="display: flex; justify-content: space-between;">
-                              <span style="color: #4b5563;">Prelim: </span>
-                              <span style="font-weight: 600;">${gradeData.PRELIM_GRADE || '-'}</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between;">
-                              <span style="color: #4b5563;">Midterm: </span>
-                              <span style="font-weight: 600;">${(gradeData.MIDTERM_GRADE === 0.00 || gradeData.MIDTERM_GRADE === '0.00') ? '-' : gradeData.MIDTERM_GRADE}</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between;">
-                              <span style="color: #4b5563;">Final: </span>
-                              <span style="font-weight: 600;">${(gradeData.FINAL_GRADE === 0.00 || gradeData.FINAL_GRADE === '0.00') ? '-' : gradeData.FINAL_GRADE}</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 8px;">
-                              <span style="color: #4b5563;">GWA: </span>
-                              <span style="font-weight: 600;">${(gradeData.MIDTERM_GRADE === 0.00 || gradeData.MIDTERM_GRADE === '0.00' || gradeData.FINAL_GRADE === 0.00 || gradeData.FINAL_GRADE === '0.00') ? '-' : gradeData.GWA}</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between;">
-                              <span style="color: #4b5563;">Remark: </span>
-                              <span style="font-weight: 600;">${(gradeData.MIDTERM_GRADE === 0.00 || gradeData.MIDTERM_GRADE === '0.00' || gradeData.FINAL_GRADE === 0.00 || gradeData.FINAL_GRADE === '0.00') ? '-' : gradeData.REMARK}</span>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-              
-              <!-- Footer Note -->
-              <p style="font-size: 16px; margin: 0 0 24px 0;">
-                  For a comprehensive view of your academic performance, please access your complete grade records through the student portal.
-              </p>
-              
-              <!-- Signature -->
-              <div style="text-align: left; color: #4b5563;">
-                  <p style="margin: 0;">Best regards,</p>
-                  <p style="margin: 8px 0 0 0; font-weight: 600;">Faculty Unofficial</p>
-              </div>
-          </div>
-      </div>`;
   
-      // Send email using the /api/communicate endpoint
-      const response = await fetch(`${API_URL}/communicate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+      await sendEmail({
+        template: EmailTemplates.GRADE_NOTIFICATION,
+        data: {
+          email: studentData.student.email,
+          studentId: gradeData.STUDENT_NUM,
+          studentName: studentData.student.full_name,
+          courseCode: gradeData.COURSE_CODE,
+          courseDescription: gradeData.COURSE_DESCRIPTION,
+          academicYear: gradeData.ACADEMIC_YEAR,
+          trimester: gradeData.TRIMESTER,
+          section: gradeData.SECTION,
+          facultyName: gradeData.FACULTY_NAME,
+          prelimGrade: gradeData.PRELIM_GRADE,
+          midtermGrade: gradeData.MIDTERM_GRADE,
+          finalGrade: gradeData.FINAL_GRADE,
+          gwa: gradeData.GWA,
+          remark: gradeData.REMARK
         },
-        body: JSON.stringify({
-          type: 'email',
-          data: {
-            to: studentData.student.email,
-            subject: `Grade Update Notification - ${gradeData.COURSE_CODE}`,
-            content: emailContent
-          }
-        })
+        onProgress: (progress) => {
+          setCurrentEmailProgress(prev => ({
+            ...prev,
+            studentNum: progress.studentNum,
+            name: progress.name,
+            current: prev.current + (progress.status === 'sent' ? 1 : 0)
+          }));
+        },
+        onError: (error) => {
+          setEmailErrors(prev => [...prev, error]);
+        }
       });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Failed to send email: ${errorData.message || response.statusText}`);
-      }
-  
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error('Email sending failed');
-      }
-  
     } catch (error) {
       console.error('Error sending grade notification:', error);
-      throw error; // Propagate error to processCSV
+      throw error;
     }
   };
 
@@ -414,7 +321,7 @@ const TeacherDashboard = ({ onLogout }) => {
   // Function to validate and process the uploaded CSV file
   const validateAndProcessFile = (file) => {
     if (!file) return;
-
+  
     if (file.type !== 'text/csv') {
       setUploadStatus({
         success: false,
@@ -422,16 +329,16 @@ const TeacherDashboard = ({ onLogout }) => {
       });
       return;
     }
-
+  
     setSelectedFile(file);
     setUploadStatus(null);
-
+  
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target.result;
         const parsedData = parseCSV(text);
-
+  
         if (parsedData.length < 2) {
           setUploadStatus({
             success: false,
@@ -439,7 +346,7 @@ const TeacherDashboard = ({ onLogout }) => {
           });
           return;
         }
-
+  
         const headers = parsedData[0];
         const rows = parsedData.slice(1).map(row => {
           const obj = {};
@@ -448,11 +355,12 @@ const TeacherDashboard = ({ onLogout }) => {
           });
           return obj;
         });
-
-        // Filter out empty rows and compute grades before setting the state
+  
+        // Filter out empty rows and compute grades
         const validRows = rows.filter(row => Object.values(row).some(value => value));
         const processedData = computeGrades(validRows);
         setCsvData(processedData);
+  
       } catch (error) {
         console.error('Error parsing CSV:', error);
         setUploadStatus({
@@ -463,6 +371,96 @@ const TeacherDashboard = ({ onLogout }) => {
     };
     reader.readAsText(file);
   };
+
+  const sendRegistrationEmail = async (student) => {
+    try {
+      await sendEmail({
+        template: EmailTemplates.WELCOME_EMAIL,
+        data: {
+          email: student.EMAIL,
+          studentId: student.STUDENT_NUM,
+          firstName: student.STUDENT_NAME.split(' ')[0],
+          middleName: student.STUDENT_NAME.split(' ').slice(1, -1).join(' ') || null,
+          lastName: student.STUDENT_NAME.split(' ').pop(),
+          fullName: student.STUDENT_NAME,
+          course: '-',
+          section: student.SECTION,
+          trimester: student.TRIMESTER,
+          username: student.credentials.username,
+          password: student.credentials.password
+        },
+        onProgress: (progress) => {
+          setCurrentEmailProgress(prev => ({
+            ...prev,
+            studentNum: student.STUDENT_NUM,
+            name: student.STUDENT_NAME,
+            current: prev.current + (progress.status === 'sent' ? 1 : 0)
+          }));
+        },
+        onError: (error) => {
+          setEmailErrors(prev => [...prev, {
+            student: student.STUDENT_NUM,
+            error: error.message
+          }]);
+        }
+      });
+    } catch (error) {
+      console.error('Error sending registration email:', error);
+      throw error;
+    }
+  };
+
+// Update the renderUploadStatus function to show new student registrations
+const renderUploadStatus = () => {
+  if (!uploadStatus) return null;
+
+  return (
+    <div className={`p-4 rounded-md ${
+      uploadStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+    }`}>
+      <div className="flex items-center">
+        <AlertCircle className="mr-2" size={20} />
+        <div>
+          <p>{uploadStatus.message}</p>
+          {uploadStatus.success && uploadStatus.rowsAffected && (
+            <p className="mt-2">Successfully uploaded {uploadStatus.rowsAffected} records.</p>
+          )}
+          {uploadStatus.newStudentsCount > 0 && (
+            <p className="mt-2">Registration emails sent to {uploadStatus.newStudentsCount} new students.</p>
+          )}
+        </div>
+      </div>
+      
+      {/* Skipped Rows Display */}
+      {uploadStatus.skippedRows && uploadStatus.skippedRows.length > 0 && (
+        <div className="mt-4 bg-yellow-50 p-4 rounded-md">
+          <h4 className="font-semibold mb-2">Skipped Records:</h4>
+          <ul className="list-disc pl-4">
+            {uploadStatus.skippedRows.map((row, index) => (
+              <li key={index} className="text-sm">
+                Student {row.studentNum}: {row.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {/* Email Error Messages */}
+      {emailErrors.length > 0 && (
+        <div className="mt-4 bg-yellow-50 p-4 rounded-md">
+          <h4 className="font-semibold mb-2">Email Notification Errors:</h4>
+          <ul className="list-disc pl-4">
+            {emailErrors.map((error, index) => (
+              <li key={index} className="text-sm">
+                Student {error.student}: {error.error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
 
   // Function to parse CSV text into an array of arrays
   const parseCSV = (text) => {
@@ -518,108 +516,182 @@ const TeacherDashboard = ({ onLogout }) => {
 
   // Process CSV file and send notifications
   const processCSV = async () => {
-    if (!selectedFile) return;
-
+    if (!selectedFile || csvData.length === 0) return;
+  
     setIsUploading(true);
     setIsEmailSending(false);
     setEmailErrors([]);
-
+    
+    // Initialize progress states
+    const totalSteps = csvData.length * 3; // Registration, Grade Upload, Email
     setUploadProgress({
-      studentNum: '',
-      name: '',
+      phase: 'Registering students',
       current: 0,
-      total: csvData.length
+      total: totalSteps
     });
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
+  
     try {
-      // Update progress for each record
-      for (let i = 0; i < csvData.length; i++) {
-        const currentRecord = csvData[i];
-        setUploadProgress(prev => ({
-          ...prev,
-          studentNum: currentRecord.STUDENT_NUM,
-          name: currentRecord.STUDENT_NAME,
-          current: i + 1
-        }));
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Step 1: Register students
+      const processedRows = [];
+      const skippedRows = [];
+      const newStudents = [];
+      let currentProgress = 0;
+  
+      for (const row of csvData) {
+        try {
+          setUploadProgress(prev => ({
+            ...prev,
+            phase: 'Registering students',
+            studentNum: row.STUDENT_NUM,
+            name: row.STUDENT_NAME,
+            current: currentProgress + 1
+          }));
+  
+          // Extract student name parts
+          const nameParts = row.STUDENT_NAME.split(' ');
+          const lastName = nameParts.pop();
+          const firstName = nameParts.shift();
+          const middleName = nameParts.join(' ') || null;
+  
+          const response = await fetch(`${API_URL}/auth`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              action: 'register',
+              studentId: row.STUDENT_NUM,
+              firstName,
+              middleName,
+              lastName,
+              email: row.EMAIL,
+              section: row.SECTION,
+              trimester: row.TRIMESTER,
+              course: '-'
+            })
+          });
+  
+          const data = await response.json();
+          
+          if (response.status === 400 && data.message === 'Already registered') {
+            processedRows.push(row);
+          } else if (data.success) {
+            processedRows.push(row);
+            newStudents.push({
+              ...row,
+              credentials: data.credentials
+            });
+          } else {
+            skippedRows.push({
+              studentNum: row.STUDENT_NUM,
+              reason: data.message || 'Registration failed'
+            });
+          }
+  
+          currentProgress++;
+          
+        } catch (error) {
+          console.error('Error processing student:', row.STUDENT_NUM, error);
+          skippedRows.push({
+            studentNum: row.STUDENT_NUM,
+            reason: 'Registration process failed'
+          });
+        }
       }
-
-      const response = await fetch(`${API_URL}/grades`, {
+  
+      // Step 2: Upload grades
+      setUploadProgress(prev => ({
+        ...prev,
+        phase: 'Uploading grades',
+        current: currentProgress
+      }));
+  
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+  
+      const uploadResponse = await fetch(`${API_URL}/grades`, {
         method: 'POST',
         body: formData
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setIsEmailSending(true);
-        const emailErrors = [];
-
-        setCurrentEmailProgress({
-          studentNum: '',
-          name: '',
-          current: 0,
-          total: csvData.length
-        });
-
-        // Send email notifications
-        for (let i = 0; i < csvData.length; i++) {
-          const row = csvData[i];
-          try {
-            setCurrentEmailProgress(prev => ({
-              ...prev,
-              studentNum: row.STUDENT_NUM,
-              name: row.STUDENT_NAME,
-              current: i + 1
-            }));
-
-            await sendGradeNotification(row.STUDENT_NUM, row);
-          } catch (error) {
-            emailErrors.push({
-              student: row.STUDENT_NUM,
-              error: error.message
-            });
-          }
-        }
-
-        setIsEmailSending(false);
-        setEmailErrors(emailErrors);
-        setCurrentEmailProgress({
-          studentNum: '',
-          name: '',
-          current: 0,
-          total: 0
-        });
-
-        setUploadStatus({
-          success: true,
-          message: `Upload successful. ${emailErrors.length === 0 ? 'All notifications sent successfully.' 
-            : `${csvData.length - emailErrors.length} out of ${csvData.length} notifications sent.`}`,
-        });
-
-        setSelectedFile(null);
-        setCsvData([]);
-        
-        // No need to manually fetch grades here as WebSocket will trigger the update
-      } else {
-        setUploadStatus({
-          success: false,
-          message: data.message
-        });
+  
+      const uploadData = await uploadResponse.json();
+  
+      if (!uploadData.success) {
+        throw new Error(uploadData.message || 'Grade upload failed');
       }
+  
+      // Step 3: Send emails
+      setIsEmailSending(true);
+      setCurrentEmailProgress({
+        phase: 'Sending emails',
+        current: 0,
+        total: processedRows.length + newStudents.length
+      });
+  
+      // Send registration emails to new students
+      for (const student of newStudents) {
+        try {
+          await sendRegistrationEmail(student);
+          currentProgress++;
+          setCurrentEmailProgress(prev => ({
+            ...prev,
+            current: prev.current + 1
+          }));
+        } catch (error) {
+          setEmailErrors(prev => [...prev, {
+            student: student.STUDENT_NUM,
+            error: 'Failed to send registration email'
+          }]);
+        }
+      }
+  
+      // Send grade notification emails
+      for (const row of processedRows) {
+        try {
+          await sendGradeNotification(row.STUDENT_NUM, row);
+          currentProgress++;
+          setCurrentEmailProgress(prev => ({
+            ...prev,
+            current: prev.current + 1
+          }));
+        } catch (error) {
+          setEmailErrors(prev => [...prev, {
+            student: row.STUDENT_NUM,
+            error: 'Failed to send grade notification'
+          }]);
+        }
+      }
+  
+      // Update final status
+      setUploadStatus({
+        success: true,
+        message: `Upload completed successfully. ${newStudents.length} new students registered. ${emailErrors.length} email errors.`,
+        skippedRows,
+        newStudentsCount: newStudents.length
+      });
+  
+      // Reset states
+      setSelectedFile(null);
+      setCsvData([]);
+      
     } catch (error) {
       console.error('Upload Error:', error);
       setUploadStatus({
         success: false,
-        message: 'Error uploading file and sending notifications'
+        message: error.message || 'Error during upload process'
       });
     } finally {
       setIsUploading(false);
       setIsEmailSending(false);
       setUploadProgress({
+        phase: '',
+        studentNum: '',
+        name: '',
+        current: 0,
+        total: 0
+      });
+      setCurrentEmailProgress({
+        phase: '',
         studentNum: '',
         name: '',
         current: 0,
@@ -1039,29 +1111,35 @@ const renderUploadView = () => {
 
 // Function to render loading states during file upload and email sending
 const renderLoadingStates = () => (
-  <div className="flex flex-col items-center justify-center mt-4 space-y-2">
+  <div className="flex flex-col items-center justify-center mt-4 space-y-4">
     <div className="flex items-center">
       <LoadingSpinner />
       <span className="ml-2">
         {isUploading ? (
-          <span>
-            Uploading grades... ({uploadProgress.current}/{uploadProgress.total})
+          <div className="space-y-1">
+            <p className="font-medium">{uploadProgress.phase}</p>
+            <p className="text-sm text-gray-600">
+              Progress: {uploadProgress.current}/{uploadProgress.total}
+            </p>
             {uploadProgress.studentNum && (
-              <span className="block text-sm text-gray-600">
+              <p className="text-sm text-gray-600">
                 Currently processing: {uploadProgress.studentNum} - {uploadProgress.name}
-              </span>
+              </p>
             )}
-          </span>
-        ) : (
-          <span>
-            Sending email notifications... ({currentEmailProgress.current}/{currentEmailProgress.total})
+          </div>
+        ) : isEmailSending ? (
+          <div className="space-y-1">
+            <p className="font-medium">Sending Notifications</p>
+            <p className="text-sm text-gray-600">
+              Progress: {currentEmailProgress.current}/{currentEmailProgress.total}
+            </p>
             {currentEmailProgress.studentNum && (
-              <span className="block text-sm text-gray-600">
+              <p className="text-sm text-gray-600">
                 Currently processing: {currentEmailProgress.studentNum} - {currentEmailProgress.name}
-              </span>
+              </p>
             )}
-          </span>
-        )}
+          </div>
+        ) : null}
       </span>
     </div>
     <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5">
@@ -1077,7 +1155,6 @@ const renderLoadingStates = () => (
     </div>
   </div>
 );
-
 
 return (
   <div className="flex flex-col h-screen bg-gray-100 md:flex-row">

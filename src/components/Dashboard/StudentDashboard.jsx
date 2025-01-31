@@ -84,7 +84,8 @@ const StudentDashboard = ({ onLogout }) => {
               studentId: userInfo.studentId,
               course: newstudentData.student.course,
               section: newstudentData.student.section,
-              trimester: newstudentData.student.trimester
+              trimester: newstudentData.student.trimester,
+              email: newstudentData.student.email
             });
           }
         }

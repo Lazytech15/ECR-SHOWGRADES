@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, BookOpen, Users } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { sendEmail, EmailTemplates } from '../Sendemail/Sendemail';
 
 const LOCAL_API_URL = 'http://localhost:5000/api';
 
@@ -17,92 +18,6 @@ const RegistrationPage = () => {
     trimester: '',
     email: ''
   });
-
-  const generateEmailTemplate = (userData, credentials) => {
-    const fullName = userData.middleName 
-      ? `${userData.firstName} ${userData.middleName} ${userData.lastName}`
-      : `${userData.firstName} ${userData.lastName}`;
-
-      return `
-      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; line-height: 1.6;">
-        <!-- Header -->
-        <div style="background-color: #003366; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="color: #ffffff; font-size: 22px; font-weight: 600; margin: 0;">Welcome to ECR Online Grade</h1>
-        </div>
-    
-        <!-- Main Content -->
-        <div style="padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
-          <!-- Greeting -->
-          <p style="font-size: 16px; margin: 0 0 24px 0;">
-            Dear ${userData.firstName} ${userData.lastName},
-          </p>
-          
-          <p style="font-size: 16px; margin: 0 0 24px 0;">
-            Welcome to ECR Online Grade! Below are your login credentials and registration details:
-          </p>
-          
-          <!-- Registration Details -->
-          <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
-            <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Registration Details</h2>
-            <div style="display: grid; grid-gap: 16px;">
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Student ID:</span>
-                <span style="font-weight: 600;">${userData.studentId}</span>
-              </div>
-              
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Full Name:</span>
-                <span style="font-weight: 600;">${fullName}</span>
-              </div>
-              
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Course:</span>
-                <span style="font-weight: 600;">${userData.course}</span>
-              </div>
-              
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Section:</span>
-                <span style="font-weight: 600;">${userData.section}</span>
-              </div>
-              
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Trimester:</span>
-                <span style="font-weight: 600;">${userData.trimester}</span>
-              </div>
-            </div>
-          </div>
-    
-          <!-- Credentials -->
-          <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
-            <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Login Credentials</h2>
-            <div style="display: grid; grid-gap: 16px;">
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Username:</span>
-                <span style="font-weight: 600;">${credentials.username}</span>
-              </div>
-              
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                <span style="color: #4b5563; font-weight: 500;">Password:</span>
-                <span style="font-weight: 600;">${credentials.password}</span>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Footer Note -->
-          <p style="font-size: 16px; margin: 0 0 24px 0;">
-            For a comprehensive view of your academic performance, please log in to the student portal.
-          </p>
-          
-          <!-- Signature -->
-          <div style="text-align: left; color: #4b5563;">
-            <p style="margin: 0;">Best regards,</p>
-            <p style="margin: 8px 0 0 0; font-weight: 600;">ECR Online Grade Team</p>
-          </div>
-        </div>
-      </div>
-    `;
-    
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -129,23 +44,14 @@ const RegistrationPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Generate the email template with the returned credentials
-        const emailHtml = generateEmailTemplate(formData, data.credentials);
-        
-        // Send the welcome email using the communicate endpoint
-        await fetch(`${LOCAL_API_URL}/communicate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            type: 'email',
-            data: {
-              to: formData.email,
-              subject: 'Welcome to ECR Online Grade',
-              content: emailHtml
-            }
-          })
+        // Send welcome email using the sendEmail utility
+        await sendEmail({
+          template: EmailTemplates.WELCOME_EMAIL,
+          data: {
+            ...formData,
+            username: data.credentials.username,
+            password: data.credentials.password
+          }
         });
 
         Swal.fire({
