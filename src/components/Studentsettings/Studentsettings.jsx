@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle2, Lock, User } from 'lucide-react';
-import { useWebSocket } from '../WebSocketManager/Websocketmanager';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
 const StudentSettings = ({ studentData }) => {
-  const { isConnected } = useWebSocket();
   const [formData, setFormData] = useState({
     studentId: studentData?.studentId || '',
     currentPassword: '',
@@ -22,18 +20,7 @@ const StudentSettings = ({ studentData }) => {
   const [success, setSuccess] = useState(null);
 
   useEffect(() => {
-    const handleWebSocketMessage = (event) => {
-      const data = event.detail;
-      if (data.type === 'database_update' && 
-          data.changes?.students_update?.includes(studentData?.studentId)) {
-        fetchStudentData();
-      }
-    };
-
-    window.addEventListener('websocket-message', handleWebSocketMessage);
-    return () => {
-      window.removeEventListener('websocket-message', handleWebSocketMessage);
-    };
+    fetchStudentData();
   }, [studentData?.studentId]);
 
   const fetchStudentData = async () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
 export const EmailTemplates = {
   GRADE_NOTIFICATION: 'grade-notification',

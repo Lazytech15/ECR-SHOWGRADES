@@ -8,6 +8,8 @@ function LoginPage({ onLogin }) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const formRef = useRef(null)
 
+  const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (window.innerWidth < 1024 && isFormOpen && formRef.current && !formRef.current.contains(event.target)) {
@@ -27,7 +29,7 @@ function LoginPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch("http://localhost:5000/api/auth", {
+      const response = await fetch(`${API_URL}/auth`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

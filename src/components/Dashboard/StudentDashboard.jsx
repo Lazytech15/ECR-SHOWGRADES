@@ -15,7 +15,7 @@ import {
 import LoadingSpinner from '../Loadinganimation/Loading';
 import StudentSettings from '../Studentsettings/Studentsettings';
 
-const LOCAL_API_URL = 'http://localhost:5000';
+const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
 const StudentDashboard = ({ onLogout }) => {
   // State variables

@@ -4,7 +4,7 @@ import { User, Mail, BookOpen, Users } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { sendEmail, EmailTemplates } from '../Sendemail/Sendemail';
 
-const LOCAL_API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
 const RegistrationPage = () => {
   const navigate = useNavigate();

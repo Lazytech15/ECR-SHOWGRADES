@@ -14,10 +14,9 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import LoadingSpinner from '../Loadinganimation/Loading';
-import { useWebSocket } from '../WebSocketManager/Websocketmanager';
 import sendEmail,{ EmailTemplates } from '../Sendemail/Sendemail';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
 const TeacherDashboard = ({ onLogout }) => {
   // State variables
@@ -89,47 +88,6 @@ const TeacherDashboard = ({ onLogout }) => {
 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-    // Add WebSocket context
-    const ws = useContext(useWebSocket);
-
-    // Add WebSocket message handler
-    useEffect(() => {
-      if (!ws) return;
-  
-      const handleWebSocketMessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          
-          if (message.type === 'database_update') {
-            const { changes } = message;
-            
-            // Handle different types of updates
-            if (changes.grades_update || changes.grades_insert || changes.grades_delete) {
-              // Refresh grades data
-              fetchUploadedGrades();
-            }
-  
-            // Handle specific student updates
-            if (changes.students_update) {
-              // Refresh specific student data if needed
-              const updatedStudentIds = changes.students_update;
-              // You can implement specific refresh logic here
-            }
-          }
-        } catch (error) {
-          console.error('Error handling WebSocket message:', error);
-        }
-      };
-  
-      // Add WebSocket event listeners
-      ws.addEventListener('message', handleWebSocketMessage);
-  
-      // Cleanup function
-      return () => {
-        ws.removeEventListener('message', handleWebSocketMessage);
-      };
-    }, [ws]);
 
   // Fetch uploaded grades from the server
   const fetchUploadedGrades = async () => {
