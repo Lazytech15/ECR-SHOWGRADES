@@ -78,22 +78,22 @@ if (loading) {
   return (
     <div className="flex min-h-screen bg-white">
       {/* Desktop View */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('/login-bg.jpg')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-blue-900/90" />
-        <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
-          <h1 className="text-5xl font-bold leading-tight mb-4">
-            Student Grade
-            <br />
-            Management System
-          </h1>
-          <p className="text-blue-100 text-lg">
-            Access your academic records and track your progress with our
-            comprehensive grading system
-          </p>
+        <div className="hidden lg:flex lg:w-1/2 relative bg-[url('https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg')] bg-cover bg-center">
+          <div className="absolute inset-0 bg-black opacity-80"></div>
+          <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
+            <h1 className="text-5xl font-bold leading-tight mb-4">
+          ECR Grade
+          <br />
+          Management System
+            </h1>
+            <p className="text-blue-100 text-lg">
+          Access your academic records and track your progress with our
+          comprehensive grading system
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Mobile View */}
+        {/* Mobile View */}
       <div className="w-full lg:w-1/2 relative h-screen overflow-hidden">
         {/* Welcome Screen */}
         <div className="lg:hidden flex flex-col items-center justify-center h-full px-6 text-center">
