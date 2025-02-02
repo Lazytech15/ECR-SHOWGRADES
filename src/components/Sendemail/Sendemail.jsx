@@ -111,8 +111,8 @@ const createGradeNotificationEmail = (data) => {
                     </div>
                     
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-                        <span style="color: #4b5563; font-weight: 500;">Trimester: </span>
-                        <span style="font-weight: 600;">${data.trimester}</span>
+                        <span style="color: #4b5563; font-weight: 500;">Academic Term: </span>
+                        <span style="font-weight: 600;">${data.academic_term}</span>
                     </div>
                     
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
@@ -217,8 +217,8 @@ const createWelcomeEmail = (data) => {
             </div>
             
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
-              <span style="color: #4b5563; font-weight: 500;">Trimester:</span>
-              <span style="font-weight: 600;">${data.trimester}</span>
+              <span style="color: #4b5563; font-weight: 500;">Academic Term:</span>
+              <span style="font-weight: 600;">${data.academic_term}</span>
             </div>
           </div>
         </div>

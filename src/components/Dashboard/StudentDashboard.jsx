@@ -48,13 +48,13 @@ const StudentDashboard = ({ onLogout }) => {
         }
   
         // Fetch grades using new API endpoint
-        const gradesResponse = await fetch(`${LOCAL_API_URL}/api/grades?studentId=${userInfo.studentId}`);
+        const gradesResponse = await fetch(`${API_URL}/grades?studentId=${userInfo.studentId}`);
         if (!gradesResponse.ok) {
           throw new Error('Failed to fetch grades');
         }
         
         // Get student data
-        const getstudentdata = await fetch(`${LOCAL_API_URL}/api/auth`, {
+        const getstudentdata = await fetch(`${API_URL}/auth`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -99,40 +99,12 @@ const StudentDashboard = ({ onLogout }) => {
     };
   
     fetchData();
-  
-    // Initialize WebSocket connection
-    const socket = new WebSocket('ws://localhost:5000');
-  
-    socket.onopen = () => {
-      console.log('WebSocket connection established');
-    };
-  
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'database_update') {
-        // Check which tables were updated
-        const changes = data.changes;
-        
-        // Refresh data if relevant tables were updated
-        if (changes.students_update || changes.grades_update) {
-          fetchData();
-        }
-      }
-    };
-  
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-  
-    return () => {
-      socket.close();
-    };
   }, [navigate]);
   
   // Organize grades by trimester
   const organizeGradesByTrimester = (gradesData) => {
     return gradesData.reduce((acc, grade) => {
-      const trimester = `Trimester ${grade.trimester}`;
+      const trimester = `Academic Term ${grade.academic_term}`;
       if (!acc[trimester]) {
         acc[trimester] = [];
       }
@@ -158,7 +130,7 @@ const StudentDashboard = ({ onLogout }) => {
   // Updated communication function for the mailbox feature
   const sendCommunication = async (type, data) => {
     try {
-      const response = await fetch(`${LOCAL_API_URL}/api/communicate`, {
+      const response = await fetch(`${API_URL}/communicate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

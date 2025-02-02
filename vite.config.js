@@ -11,7 +11,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'), // Adjust the path as needed
+      '@': path.resolve(__dirname, 'src/index.css'), // Adjust the path as needed
     },
   },
 });

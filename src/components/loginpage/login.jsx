@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Eye, EyeOff, Lock, User, ChevronUp } from "lucide-react"
+import LoadingSpinner from '../Loadinganimation/Loading';
 
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("")
@@ -7,6 +8,8 @@ function LoginPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const formRef = useRef(null)
+  const [loading, setLoading] = useState(false);
+  
 
   const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
@@ -28,6 +31,7 @@ function LoginPage({ onLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/auth`, {
         method: "POST",
@@ -65,6 +69,11 @@ function LoginPage({ onLogin }) {
       alert("An error occurred while trying to log in. Please try again.")
     }
   }
+
+  // Display loading spinner if data is loading
+if (loading) {
+  return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
+}
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -161,7 +170,7 @@ function LoginPage({ onLogin }) {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <label className="flex items-center">
                   <input
                     type="checkbox"
@@ -175,7 +184,7 @@ function LoginPage({ onLogin }) {
                 >
                   Forgot password?
                 </button>
-              </div>
+              </div> */}
 
               <button
                 type="submit"

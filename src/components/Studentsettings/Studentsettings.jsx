@@ -10,7 +10,7 @@ const StudentSettings = ({ studentData }) => {
     newPassword: '',
     confirmPassword: '',
     section: studentData?.section || '',
-    trimester: studentData?.trimester || '',
+    trimester: studentData?.academic_term || '',
     course: studentData?.course || '',
     email: studentData?.email || ''
   });

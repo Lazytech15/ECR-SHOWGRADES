@@ -29,6 +29,7 @@ const TeacherDashboard = ({ onLogout }) => {
   const [uploadedGrades, setUploadedGrades] = useState([]);
   const [, setIsGradesFetching] = useState(true);
   const [isEmailSending, setIsEmailSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [emailErrors, setEmailErrors] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -91,6 +92,7 @@ const TeacherDashboard = ({ onLogout }) => {
 
   // Fetch uploaded grades from the server
   const fetchUploadedGrades = async () => {
+    setLoading(true);
     if (teacher_id) {
       try {
         const response = await fetch(`${API_URL}/grades?teacherId=${encodeURIComponent(teacher_id)}`);
@@ -104,6 +106,7 @@ const TeacherDashboard = ({ onLogout }) => {
       } catch (error) {
         console.error('Error fetching grades:', error);
       } finally {
+        setLoading(false);
         setIsGradesFetching(false);
       }
     }
@@ -138,7 +141,7 @@ const TeacherDashboard = ({ onLogout }) => {
           courseCode: gradeData.COURSE_CODE,
           courseDescription: gradeData.COURSE_DESCRIPTION,
           academicYear: gradeData.ACADEMIC_YEAR,
-          trimester: gradeData.TRIMESTER,
+          academic_term: gradeData.ACADEMIC_TERM,
           section: gradeData.SECTION,
           facultyName: gradeData.FACULTY_NAME,
           prelimGrade: gradeData.PRELIM_GRADE,
@@ -189,10 +192,10 @@ const TeacherDashboard = ({ onLogout }) => {
 
     // Process trimester data
     const trimesterData = uploadedGrades.reduce((acc, grade) => {
-      const key = `${grade.academic_year}-${grade.trimester}`;
+      const key = `${grade.academic_year}-${grade.academic_term}`;
       if (!acc[key]) {
         acc[key] = {
-          name: `${grade.academic_year} - ${grade.trimester}`,
+          name: `${grade.academic_year} - ${grade.academic_term}`,
           count: 0,
           incCount: 0,
           passedCount: 0,
@@ -240,7 +243,7 @@ const TeacherDashboard = ({ onLogout }) => {
     // Apply trimester filter
     if (selectedTrimester !== 'all') {
       filtered = filtered.filter(grade =>
-        `${grade.academic_year}-${grade.trimester}` === selectedTrimester
+        `${grade.academic_year}-${grade.academic_term}` === selectedTrimester
       );
     }
 
@@ -343,7 +346,7 @@ const TeacherDashboard = ({ onLogout }) => {
           fullName: student.STUDENT_NAME,
           course: '-',
           section: student.SECTION,
-          trimester: student.TRIMESTER,
+          academic_term: student.ACADEMIC_TERM,
           username: student.credentials.username,
           password: student.credentials.password
         },
@@ -524,7 +527,7 @@ const renderUploadStatus = () => {
               lastName,
               email: row.EMAIL,
               section: row.SECTION,
-              trimester: row.TRIMESTER,
+              academic_term: row.ACADEMIC_TERM,
               course: '-'
             })
           });
@@ -756,7 +759,7 @@ const renderUploadStatus = () => {
         {/* Chart Card 1: Grade Distribution by Trimester */}
         <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold">Grade Distribution by Trimester</h3>
+            <h3 className="text-lg font-semibold">Grade Distribution by each Terms</h3>
           </div>
           <div className="p-4">
             <BarChart width={500} height={300} data={trimesterChartData}>
@@ -822,7 +825,7 @@ const renderUploadStatus = () => {
         value={selectedTrimester}
         onChange={(e) => setSelectedTrimester(e.target.value)}
       >
-        <option value="all">All Trimesters</option>
+        <option value="all">All Terms</option>
         {Object.keys(analytics.trimesterData).map(key => (
           <option key={key} value={key}>{analytics.trimesterData[key].name}</option>
         ))}
@@ -901,7 +904,7 @@ const renderDashboard = () => {
                       <th className="p-2 text-center whitespace-nowrap">Midterm</th>
                       <th className="p-2 text-center whitespace-nowrap">Final</th>
                       <th className="p-2 text-center whitespace-nowrap">Academic Year</th>
-                      <th className="p-2 text-center whitespace-nowrap">Trimester</th>
+                      <th className="p-2 text-center whitespace-nowrap">Academic Term</th>
                       <th className="p-2 text-center whitespace-nowrap">Section</th>
                       <th className="p-2 text-center whitespace-nowrap">Remark</th>
                       <th className="p-2 text-center whitespace-nowrap">GWA</th>
@@ -918,7 +921,7 @@ const renderDashboard = () => {
                         <td className="p-2 text-center whitespace-nowrap">{grade.midterm_grade}</td>
                         <td className="p-2 text-center whitespace-nowrap">{grade.final_grade}</td>
                         <td className="p-2 text-center whitespace-nowrap">{grade.academic_year}</td>
-                        <td className="p-2 text-center whitespace-nowrap">{grade.trimester}</td>
+                        <td className="p-2 text-center whitespace-nowrap">{grade.academic_term}</td>
                         <td className="p-2 text-center whitespace-nowrap">{grade.section}</td>
                         <td className="p-2 text-center whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-sm ${
@@ -1113,6 +1116,11 @@ const renderLoadingStates = () => (
     </div>
   </div>
 );
+
+// Display loading spinner if data is loading
+if (loading) {
+  return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
+}
 
 return (
   <div className="flex flex-col h-screen bg-gray-100 md:flex-row">
