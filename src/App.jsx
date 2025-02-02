@@ -4,6 +4,7 @@ import LoginPage from './components/loginpage/login';
 import RegistrationPage from './components/RegistrationStudent/Studentregistration';
 import StudentDashboard from './components/Dashboard/StudentDashboard';
 import TeacherDashboard from './components/Dashboard/TeacherDashboard';
+import AdminDashboard from './components/Dashboard/adminDashboard';
 import LoadingSpinner from './components/Loadinganimation/Loading';
 
 // Protected Route Component
@@ -27,23 +28,27 @@ const ProtectedRoute = ({ children, isAuthenticated, isLoading }) => {
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [dashboardType, setDashboardType] = useState(null);
+  const [userType, setUserType] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = () => {
       const studentInfo = localStorage.getItem('userInfo');
       const teacherInfo = localStorage.getItem('teacherInfo');
+      const adminInfo = localStorage.getItem('adminInfo');
 
       if (studentInfo) {
         setIsAuthenticated(true);
-        setDashboardType('student');
+        setUserType('student');
       } else if (teacherInfo) {
         setIsAuthenticated(true);
-        setDashboardType('teacher');
+        setUserType('teacher');
+      } else if (adminInfo) {
+        setIsAuthenticated(true);
+        setUserType('admin');
       } else {
         setIsAuthenticated(false);
-        setDashboardType(null);
+        setUserType(null);
       }
       setIsLoading(false);
     };
@@ -53,14 +58,28 @@ function App() {
 
   const handleLogin = (success, type = null) => {
     setIsAuthenticated(success);
-    setDashboardType(type);
+    setUserType(type);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('userInfo');
     localStorage.removeItem('teacherInfo');
+    localStorage.removeItem('adminInfo');
     setIsAuthenticated(false);
-    setDashboardType(null);
+    setUserType(null);
+  };
+
+  const getDashboardComponent = () => {
+    switch (userType) {
+      case 'student':
+        return <StudentDashboard onLogout={handleLogout} />;
+      case 'teacher':
+        return <TeacherDashboard onLogout={handleLogout} />;
+      case 'admin':
+        return <AdminDashboard onLogout={handleLogout} />;
+      default:
+        return <Navigate to="/login" replace />;
+    }
   };
 
   return (
@@ -92,13 +111,7 @@ function App() {
           path="dashboard" 
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated} isLoading={isLoading}>
-              {dashboardType === 'student' ? (
-                <StudentDashboard onLogout={handleLogout} />
-              ) : dashboardType === 'teacher' ? (
-                <TeacherDashboard onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )}
+              {getDashboardComponent()}
             </ProtectedRoute>
           }
         />
