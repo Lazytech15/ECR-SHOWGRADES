@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, UserPlus, RefreshCw, Search, UserX, GraduationCap, LogOut } from 'lucide-react';
 import axios from 'axios';
+import sendEmail,{ EmailTemplates } from '../Sendemail/Sendemail';
 
 const AdminDashboard = ({onLogout}) => {
   const [students, setStudents] = useState([]);
@@ -122,15 +123,38 @@ const AdminDashboard = ({onLogout}) => {
   
       const data = await response.json();
       
+      if (data.success) {
+        // Send welcome email to the teacher
+        try {
+          await sendEmail({
+            template: EmailTemplates.TEACHER_REGISTRATION,
+            data: {
+              teacherId: newTeacher.teacher_id,
+              teacherName: newTeacher.teacher_name,
+              email: newTeacher.personal_email,
+              username: data.credentials.username,
+              password: data.credentials.password
+            },
+            onProgress: (progress) => {
+              console.log('Email sending progress:', progress);
+            },
+            onError: (error) => {
+              console.error('Email sending error:', error);
+            }
+          });
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+        }
+        
+        fetchAllData();
+      }
+  
       setRegistrationResult({
         success: data.success,
         message: data.message,
         credentials: data.credentials
       });
   
-      if (data.success) {
-        fetchAllData();
-      }
     } catch (error) {
       setRegistrationResult({
         success: false,

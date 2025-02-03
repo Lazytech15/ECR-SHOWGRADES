@@ -5,7 +5,7 @@ const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functi
 export const EmailTemplates = {
   GRADE_NOTIFICATION: 'grade-notification',
   WELCOME_EMAIL: 'welcome-email',
-  // Add more template types as needed
+  TEACHER_REGISTRATION: 'teacher-registration'
 };
 
 export const sendEmail = async ({ template, data, onProgress, onError }) => {
@@ -20,14 +20,17 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
       case EmailTemplates.WELCOME_EMAIL:
         ({ content: emailContent, subject } = createWelcomeEmail(data));
         break;
+      case EmailTemplates.TEACHER_REGISTRATION:
+        ({ content: emailContent, subject } = createTeacherRegistrationEmail(data));
+        break;
       default:
         throw new Error('Invalid email template');
     }
 
     if (onProgress) {
       onProgress({
-        studentNum: data.studentId,
-        name: data.studentName,
+        teacherId: data.teacherId,
+        name: data.teacherName,
         status: 'sending'
       });
     }
@@ -59,8 +62,8 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
 
     if (onProgress) {
       onProgress({
-        studentNum: data.studentId,
-        name: data.studentName,
+        teacherId: data.teacherId,
+        name: data.teacherName,
         status: 'sent'
       });
     }
@@ -69,8 +72,8 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
   } catch (error) {
     if (onError) {
       onError({
-        studentNum: data.studentId,
-        name: data.studentName,
+        teacherId: data.teacherId,
+        name: data.teacherName,
         error: error.message
       });
     }
@@ -173,6 +176,100 @@ const createGradeNotificationEmail = (data) => {
   };
 };
 
+
+const createTeacherRegistrationEmail = (data) => {
+  const content = `
+    <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; line-height: 1.6;">
+      <!-- Header -->
+      <div style="background-color: #003366; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="color: #ffffff; font-size: 22px; font-weight: 600; margin: 0;">Welcome to ECR Online Grade System</h1>
+      </div>
+  
+      <!-- Main Content -->
+      <div style="padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
+        <!-- Greeting -->
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Dear ${data.teacherName},
+        </p>
+        
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Welcome to ECR Online Grade System! You have been registered as a teacher. Here are your account details:
+        </p>
+        
+        <!-- Registration Details -->
+        <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
+          <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Account Information</h2>
+          <div style="display: grid; grid-gap: 16px;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+              <span style="color: #4b5563; font-weight: 500;">Teacher ID:</span>
+              <span style="font-weight: 600;">${data.teacherId}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+              <span style="color: #4b5563; font-weight: 500;">Full Name:</span>
+              <span style="font-weight: 600;">${data.teacherName}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+              <span style="color: #4b5563; font-weight: 500;">Email:</span>
+              <span style="font-weight: 600;">${data.email}</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Login Credentials -->
+        <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
+          <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Login Credentials</h2>
+          <div style="display: grid; grid-gap: 16px;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+              <span style="color: #4b5563; font-weight: 500;">Username:</span>
+              <span style="font-weight: 600;">${data.username}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+              <span style="color: #4b5563; font-weight: 500;">Password:</span>
+              <span style="font-weight: 600;">${data.password}</span>
+            </div>
+          </div>
+          
+          <div style="margin-top: 16px; padding: 12px; background-color: #fff4e5; border-radius: 4px;">
+            <p style="margin: 0; color: #b45309; font-size: 14px;">
+              For security reasons, please change your password after your first login.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Next Steps -->
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Next Steps:</h3>
+          <ol style="margin: 0; padding-left: 24px; color: #4b5563;">
+            <li style="margin-bottom: 8px;">Visit the ECR Online Grade Portal at <a href="https://mailer.cyberdyne.top/" style="color: #2563eb;">ECR PORTAL</a></li>
+            <li style="margin-bottom: 8px;">Log in using your username and password provided above</li>
+            <li style="margin-bottom: 8px;">Change your password to ensure account security</li>
+            <li>Set up your teacher profile if required</li>
+          </ol>
+        </div>
+        
+        <!-- Footer Note -->
+        <p style="font-size: 16px; margin: 0 0 24px 0; color: #4b5563;">
+          If you have any questions or need assistance, please don't hesitate to contact our support team.
+        </p>
+        
+        <!-- Signature -->
+        <div style="text-align: left; color: #4b5563;">
+          <p style="margin: 0;">Best regards,</p>
+          <p style="margin: 8px 0 0 0; font-weight: 600;">ECR Online Grade Team</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return {
+    content,
+    subject: 'Welcome to ECR Online Grade System - Teacher Registration'
+  };
+};
+
 const createWelcomeEmail = (data) => {
   const content = `
     <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; line-height: 1.6;">
@@ -249,7 +346,7 @@ const createWelcomeEmail = (data) => {
         <div style="margin-bottom: 24px;">
           <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Next Steps:</h3>
           <ol style="margin: 0; padding-left: 24px; color: #4b5563;">
-            <li style="margin-bottom: 8px;">Visit the ECR Online Grade Portal at <a href="http://your-application-url" style="color: #2563eb;">ECR PORTAL</a></li>
+            <li style="margin-bottom: 8px;">Visit the ECR Online Grade Portal at <a href="https://mailer.cyberdyne.top/" style="color: #2563eb;">ECR PORTAL</a></li>
             <li style="margin-bottom: 8px;">Log in using your username and password provided above</li>
             <li style="margin-bottom: 8px;">Change your password to ensure account security</li>
             <li>Complete your student profile if required</li>
