@@ -10,7 +10,6 @@ function LoginPage({ onLogin }) {
   const formRef = useRef(null)
   const [loading, setLoading] = useState(false);
   
-
   const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
   useEffect(() => {
@@ -32,7 +31,7 @@ function LoginPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const loginInput = username.trim(); // This could be either username or email
+    const loginInput = username.trim();
     
     console.log('Login attempt:', {
       loginInput,
@@ -47,8 +46,8 @@ function LoginPage({ onLogin }) {
         },
         body: JSON.stringify({
           action: "login",
-          loginInput, // Send the raw input
-          loginType: loginInput.includes('@') ? 'email' : 'username', // Specify the type
+          loginInput,
+          loginType: loginInput.includes('@') ? 'email' : 'username',
           password: password,
         }),
       });
@@ -71,7 +70,6 @@ function LoginPage({ onLogin }) {
         );
         onLogin(true, data.user.role);
       } else {
-        // More specific error messages
         alert(data.message || "Login failed. Please check your credentials.");
       }
     } catch (error) {
@@ -82,52 +80,52 @@ function LoginPage({ onLogin }) {
     }
   };
 
-  // Display loading spinner if data is loading
-if (loading) {
-  return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
-}
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
+  }
 
   return (
     <div className="flex min-h-screen bg-white">
       {/* Desktop View */}
-        <div className="hidden lg:flex lg:w-1/2 relative bg-[url('https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg')] bg-cover bg-center">
-          <div className="absolute inset-0 bg-black opacity-80"></div>
-          <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
-            <h1 className="text-5xl font-bold leading-tight mb-4">
-          ECR Grade
-          <br />
-          Management System
-            </h1>
-            <p className="text-blue-100 text-lg">
-          Access your academic records and track your progress with our
-          comprehensive grading system
-            </p>
-          </div>
-        </div>
-
-        {/* Mobile View */}
-      <div className="w-full lg:w-1/2 relative h-screen overflow-hidden">
-        {/* Welcome Screen */}
-        <div className="lg:hidden flex flex-col items-center justify-center h-full px-6 text-center">
-          {/* Added plain image */}
-          <img 
-            src="https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg" 
-            alt="ECR Logo" 
-            className="w-48 h-48 mb-8 object-contain"
-          />
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome to ECR
+      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-black opacity-80"></div>
+        <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
+          <h1 className="text-5xl font-bold leading-tight mb-4">
+            ECR Grade
+            <br />
+            Management System
           </h1>
-          <p className="text-gray-600 mb-8">
-            Your comprehensive student grade management
+          <p className="text-blue-100 text-lg">
+            Access your academic records and track your progress with our
+            comprehensive grading system
           </p>
-          <button
-            aria-label="toggle-login"
-            onClick={() => setIsFormOpen(true)}
-            className="flex items-center gap-2 bg-blue-500 text-white px-8 py-3 rounded-full hover:bg-blue-600 transition-all duration-300"
-          >
-            Login <ChevronUp className={`transform ${isFormOpen ? 'rotate-180' : ''} transition-transform duration-300`} />
-          </button>
+        </div>
+      </div>
+
+      {/* Mobile View */}
+      <div className="w-full lg:w-1/2 relative h-screen overflow-hidden">
+        {/* Welcome Screen with Background Image */}
+        <div className="lg:hidden flex flex-col items-center justify-center h-full px-6 text-center relative">
+          {/* Background Image Container */}
+          <div className="absolute inset-0 bg-[url('https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg')] bg-cover bg-center">
+            <div className="absolute inset-0 bg-black opacity-60"></div>
+          </div>
+          {/* Content */}
+          <div className="relative z-10">
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Welcome to ECR
+            </h1>
+            <p className="text-gray-200 mb-8">
+              Your comprehensive student grade management
+            </p>
+            <button
+              aria-label="toggle-login"
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-2 bg-blue-500 text-white px-8 py-3 rounded-full hover:bg-blue-600 transition-all duration-300 mx-auto"
+            >
+              Login <ChevronUp className={`transform ${isFormOpen ? 'rotate-180' : ''} transition-transform duration-300`} />
+            </button>
+          </div>
         </div>
 
         {/* Sliding Login Form */}
@@ -135,12 +133,12 @@ if (loading) {
           ref={formRef}
           className={`absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-lg transform transition-transform duration-500 ease-in-out ${
             isFormOpen ? "translate-y-0" : "translate-y-full"
-          } lg:translate-y-0 lg:static lg:shadow-none lg:rounded-none flex items-center justify-center`}
+          } lg:translate-y-0 lg:static lg:shadow-none lg:rounded-none flex items-center justify-center z-1000`}
         >
           <div className="relative w-full max-w-md mx-auto px-6 py-12 flex flex-col justify-center items-center h-[95vh] text-center lg:text-left lg:items-start">
             <div className="lg:hidden absolute left-1/2 -translate-x-1/2 -top-8 w-12 h-1.5 bg-gray-300 rounded-full mb-8" />
 
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center ">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
               Welcome Back
             </h2>
 
@@ -181,22 +179,6 @@ if (loading) {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
-
-              {/* <div className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Remember me</span>
-                </label>
-                <button
-                  type="button"
-                  className="text-sm text-blue-500 hover:text-blue-600"
-                >
-                  Forgot password?
-                </button>
-              </div> */}
 
               <button
                 type="submit"
