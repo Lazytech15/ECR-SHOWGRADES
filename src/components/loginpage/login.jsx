@@ -31,54 +31,74 @@ function LoginPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const loginInput = username.trim();
-    
-    console.log('Login attempt:', {
-      loginInput,
-      isEmail: loginInput.includes('@')
-    });
-  
     try {
-      const response = await fetch(`${API_URL}/auth`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "login",
-          loginInput,
-          loginType: loginInput.includes('@') ? 'email' : 'username',
-          password: password,
-        }),
-      });
-  
-      const data = await response.json();
-      console.log('Server response:', data);
-  
-      if (data.success) {
-        const userInfo = {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          role: data.user.role,
-          ...(data.user.student_id && { studentId: data.user.student_id }),
-        };
-  
-        localStorage.setItem(
-          data.user.role === "student" ? "userInfo" : "teacherInfo",
-          JSON.stringify(userInfo)
-        );
-        onLogin(true, data.user.role);
-      } else {
-        alert(data.message || "Login failed. Please check your credentials.");
-      }
+        const response = await fetch(`${API_URL}/auth`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                action: "login",
+                loginInput: username.trim(),
+                loginType: username.includes('@') ? 'email' : 'username',
+                password: password,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            let userInfo;
+
+            // Determine the appropriate ID based on user role
+            if (data.user.role === 'student') {
+                userInfo = {
+                    id: data.user.student_id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    role: data.user.role,
+                };
+            } else if (data.user.role === 'teacher') {
+                userInfo = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    role: data.user.role,
+                };
+            } else if (data.user.role === 'admin') {
+                userInfo = {
+                    id: null, // Admin has no ID
+                    email: data.user.email,
+                    name: data.user.name,
+                    role: data.user.role,
+                };
+            }
+
+            // Clear any existing auth data
+            localStorage.removeItem('studentInfo');
+            localStorage.removeItem('teacherInfo');
+            localStorage.removeItem('adminInfo');
+
+            // Set the appropriate storage item based on role
+            if (data.user.role === 'admin') {
+                localStorage.setItem('adminInfo', JSON.stringify(userInfo));
+            } else if (data.user.role === 'student') {
+                localStorage.setItem('studentInfo', JSON.stringify(userInfo));
+            } else if (data.user.role === 'teacher') {
+                localStorage.setItem('teacherInfo', JSON.stringify(userInfo));
+            }
+            onLogin(true, data.user.role);
+        } else {
+            alert(data.message || "Login failed. Please check your credentials.");
+        }
     } catch (error) {
-      console.error("Login error:", error);
-      alert("An error occurred while trying to log in. Please try again.");
+        console.error("Login error:", error);
+        alert("An error occurred while trying to log in. Please try again.");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
+
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
@@ -87,7 +107,7 @@ function LoginPage({ onLogin }) {
   return (
     <div className="flex min-h-screen bg-white">
       {/* Desktop View */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg')] bg-cover bg-center">
+      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('./src/assets/bg-log.jpg')] bg-cover bg-center">
         <div className="absolute inset-0 bg-black opacity-80"></div>
         <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
           <h1 className="text-5xl font-bold leading-tight mb-4">
@@ -107,12 +127,13 @@ function LoginPage({ onLogin }) {
         {/* Welcome Screen with Background Image */}
         <div className="lg:hidden flex flex-col items-center justify-center h-full px-6 text-center relative">
           {/* Background Image Container */}
-          <div className="absolute inset-0 bg-[url('https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg')] bg-cover bg-center">
+          {/* https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg */}
+          <div className="absolute inset-0 bg-[url('./src/assets/bg-log.jpg')] bg-cover bg-center">
             <div className="absolute inset-0 bg-black opacity-60"></div>
           </div>
           {/* Content */}
           <div className="relative z-10">
-            <h1 className="text-4xl font-bold text-white mb-4">
+            <h1 className="text-4xl font-bold text-white mb-4 text-center">
               Welcome to ECR
             </h1>
             <p className="text-gray-200 mb-8">

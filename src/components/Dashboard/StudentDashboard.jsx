@@ -1,5 +1,5 @@
 //studentdashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Home, 
@@ -29,79 +29,87 @@ const StudentDashboard = ({ onLogout }) => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch user info from local storage
-  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-
   // Handle logout
   const handleLogout = () => {
     onLogout();
   };
 
-  // Fetch student data and grades
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.studentId) {
-          navigate('/login');
-          return;
-        }
-  
-        // Fetch grades using new API endpoint
-        const gradesResponse = await fetch(`${API_URL}/grades?studentId=${userInfo.studentId}`);
-        if (!gradesResponse.ok) {
-          throw new Error('Failed to fetch grades');
-        }
-        
-        // Get student data
-        const getstudentdata = await fetch(`${API_URL}/auth`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ action: 'get-alldata', studentId: userInfo.studentId })
-        });
-        
-        if (!getstudentdata.ok) {
-          throw new Error('Failed to fetch student data');
-        }
-        
-        const newstudentData = await getstudentdata.json();
-        if (!newstudentData.success) {
-          throw new Error('Failed to fetch student data: ' + newstudentData.message);
-        }
-  
-        const gradesData = await gradesResponse.json();
-        if (gradesData.success) {
-          const organizedGrades = organizeGradesByTrimester(gradesData.grades);
-          setGrades(organizedGrades);
-          
-          // Extract student data from the first grade entry
-          if (gradesData.grades.length > 0) {
-            const firstGrade = gradesData.grades[0];
-            setStudentData({
-              name: userInfo.name,
-              studentId: userInfo.studentId,
-              course: newstudentData.student.course,
-              section: newstudentData.student.section,
-              trimester: newstudentData.student.trimester,
-              email: newstudentData.student.email
-            });
-          }
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err.message);
-        setLoading(false);
+  // Memoized fetch data function to prevent unnecessary re-renders
+  const fetchData = useCallback(async () => {
+    try {
+      // Reset previous errors
+      setError(null);
+
+      // Get user info from local storage
+      const userInfo = JSON.parse(localStorage.getItem('studentInfo'));
+      if (!userInfo || !userInfo.role) {
+        // If no user info, trigger logout
+        onLogout();
+        return;
       }
-    };
-  
+
+      // Fetch grades
+      const gradesResponse = await fetch(`${API_URL}/grades?studentId=${userInfo.id}`);
+      if (!gradesResponse.ok) {
+        throw new Error('Failed to fetch grades');
+      }
+
+      // Fetch student data
+      const studentDataResponse = await fetch(`${API_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'get-alldata', studentId: userInfo.id })
+      });
+      
+      if (!studentDataResponse.ok) {
+        throw new Error('Failed to fetch student data');
+      }
+      
+      const studentDataJson = await studentDataResponse.json();
+      if (!studentDataJson.success) {
+        throw new Error('Failed to fetch student data: ' + studentDataJson.message);
+      }
+
+      const gradesData = await gradesResponse.json();
+      if (gradesData.success) {
+        const organizedGrades = organizeGradesByTrimester(gradesData.grades);
+        setGrades(organizedGrades);
+        
+        // Extract student data
+        if (gradesData.grades.length > 0) {
+          setStudentData({
+            name: userInfo.name,
+            studentId: userInfo.id,
+            course: studentDataJson.student.course,
+            section: studentDataJson.student.section,
+            trimester: studentDataJson.student.trimester,
+            email: studentDataJson.student.email
+          });
+        }
+      }
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError(err.message);
+      setLoading(false);
+      
+      // Trigger logout on persistent errors
+      if (err.message.includes('Failed to fetch') || err.message.includes('Unauthorized')) {
+        onLogout();
+      }
+    }
+  }, [onLogout]);
+
+  // Effect to fetch data on component mount
+  useEffect(() => {
     fetchData();
-  }, [navigate]);
+  }, [fetchData]);
   
   // Organize grades by trimester
+  // Helper function to organize grades
   const organizeGradesByTrimester = (gradesData) => {
     return gradesData.reduce((acc, grade) => {
       const trimester = `Academic Term ${grade.academic_term}`;
@@ -125,7 +133,27 @@ const StudentDashboard = ({ onLogout }) => {
       acc[trimester].push(courseGrades);
       return acc;
     }, {});
-  };  
+  };
+
+  // Display loading spinner if data is loading
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="md" /></div>;
+  }
+
+  // Display error message if there is an error
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center flex-col text-red-500">
+        <p>Error: {error}</p>
+        <button 
+          onClick={onLogout} 
+          className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+        >
+          Return to Login
+        </button>
+      </div>
+    );
+  }  
   
   // Updated communication function for the mailbox feature
   const sendCommunication = async (type, data) => {

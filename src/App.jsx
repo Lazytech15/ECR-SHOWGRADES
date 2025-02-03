@@ -32,29 +32,51 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const studentInfo = localStorage.getItem('userInfo');
-      const teacherInfo = localStorage.getItem('teacherInfo');
-      const adminInfo = localStorage.getItem('adminInfo');
-
-      if (studentInfo) {
-        setIsAuthenticated(true);
-        setUserType('student');
-      } else if (teacherInfo) {
-        setIsAuthenticated(true);
-        setUserType('teacher');
-      } else if (adminInfo) {
-        setIsAuthenticated(true);
-        setUserType('admin');
-      } else {
-        setIsAuthenticated(false);
-        setUserType(null);
+    let mounted = true;
+  
+    const checkAuth = async () => {
+      try {
+        const studentInfo = localStorage.getItem('studentInfo');
+        const teacherInfo = localStorage.getItem('teacherInfo');
+        const adminInfo = localStorage.getItem('adminInfo');
+  
+        // Add a small delay to prevent flash of loading state
+        await new Promise(resolve => setTimeout(resolve, 100));
+  
+        if (!mounted) return;
+  
+        if (studentInfo) {
+          setIsAuthenticated(true);
+          setUserType('student');
+        } else if (teacherInfo) {
+          setIsAuthenticated(true);
+          setUserType('teacher');
+        } else if (adminInfo) {
+          setIsAuthenticated(true);
+          setUserType('admin');
+        } else {
+          setIsAuthenticated(false);
+          setUserType(null);
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        if (mounted) {
+          setIsAuthenticated(false);
+          setUserType(null);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
     };
-
+  
     checkAuth();
-  }, []);
+  
+    return () => {
+      mounted = false;
+    };
+  }, []); 
 
   const handleLogin = (success, type = null) => {
     setIsAuthenticated(success);
@@ -62,7 +84,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('userInfo');
+    localStorage.removeItem('studentInfo');
     localStorage.removeItem('teacherInfo');
     localStorage.removeItem('adminInfo');
     setIsAuthenticated(false);
@@ -83,12 +105,21 @@ function App() {
   };
 
   return (
-    <Router basename="/">
+    <Router 
+      basename="/" 
+      future={{
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         <Route 
           path="login" 
           element={
-            isAuthenticated ? (
+            isLoading ? (
+              <div className="h-screen flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : isAuthenticated ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <LoginPage onLogin={handleLogin} />
