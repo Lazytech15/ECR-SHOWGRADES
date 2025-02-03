@@ -30,8 +30,15 @@ function LoginPage({ onLogin }) {
   }, [isFormOpen])
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     setLoading(true);
+    const loginInput = username.trim(); // This could be either username or email
+    
+    console.log('Login attempt:', {
+      loginInput,
+      isEmail: loginInput.includes('@')
+    });
+  
     try {
       const response = await fetch(`${API_URL}/auth`, {
         method: "POST",
@@ -40,13 +47,15 @@ function LoginPage({ onLogin }) {
         },
         body: JSON.stringify({
           action: "login",
-          email: username,
+          loginInput, // Send the raw input
+          loginType: loginInput.includes('@') ? 'email' : 'username', // Specify the type
           password: password,
         }),
-      })
-
-      const data = await response.json()
-
+      });
+  
+      const data = await response.json();
+      console.log('Server response:', data);
+  
       if (data.success) {
         const userInfo = {
           id: data.user.id,
@@ -54,21 +63,24 @@ function LoginPage({ onLogin }) {
           name: data.user.name,
           role: data.user.role,
           ...(data.user.student_id && { studentId: data.user.student_id }),
-        }
-
+        };
+  
         localStorage.setItem(
           data.user.role === "student" ? "userInfo" : "teacherInfo",
           JSON.stringify(userInfo)
-        )
-        onLogin(true, data.user.role)
+        );
+        onLogin(true, data.user.role);
       } else {
-        alert(data.message || "Login failed. Please check your credentials.")
+        // More specific error messages
+        alert(data.message || "Login failed. Please check your credentials.");
       }
     } catch (error) {
-      console.error("Login error:", error)
-      alert("An error occurred while trying to log in. Please try again.")
+      console.error("Login error:", error);
+      alert("An error occurred while trying to log in. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   // Display loading spinner if data is loading
 if (loading) {

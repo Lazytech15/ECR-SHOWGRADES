@@ -15,6 +15,8 @@ const AdminDashboard = ({onLogout}) => {
     personal_email: '',
   });
   const [registrationResult, setRegistrationResult] = useState(null);
+  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
 
   const API_BASE_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
@@ -25,15 +27,24 @@ const AdminDashboard = ({onLogout}) => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [studentsRes, teachersRes, gradesRes] = await Promise.all([
-        axios.post(`${API_BASE_URL}/auth`, { action: 'get-alldata' }),
-        axios.get(`${API_BASE_URL}/teachers`),
-        axios.get(`${API_BASE_URL}/grades`)
-      ]);
-
-      setStudents(studentsRes.data.students || []);
-      setTeachers(teachersRes.data.teachers || []);
-      setGrades(gradesRes.data.grades || []);
+      const response = await fetch(`${API_BASE_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'get-alldata' })
+      });
+      const data = await response.json();
+  
+      if (data.success) {
+        setStudents(data.students || []);
+        setTeachers(data.teachers || []);
+      }
+  
+      // Fetch grades separately since they're not part of auth
+      const gradesRes = await fetch(`${API_BASE_URL}/grades`);
+      const gradesData = await gradesRes.json();
+      setGrades(gradesData.grades || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -54,6 +65,31 @@ const AdminDashboard = ({onLogout}) => {
     }
   };
 
+
+  const handleDeleteTeacher = async (teacherId) => {
+    if (!confirm('Are you sure you want to delete this teacher?')) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'delete-teacher',
+          teacherId
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        fetchAllData();
+      }
+    } catch (error) {
+      console.error('Error deleting teacher:', error);
+    }
+  };
+
   const handleDeleteGrade = async (ecrName) => {
     if (!confirm('Are you sure you want to delete this grade entry?')) return;
     
@@ -67,50 +103,38 @@ const AdminDashboard = ({onLogout}) => {
       console.error('Error deleting grade:', error);
     }
   };
-
-  const generateCredentials = (teacherName, teacherId) => {
-    // Generate username from teacher name (first 2 letters of each word) + last 4 digits of ID
-    const username = teacherName
-      .toLowerCase()
-      .split(' ')
-      .map(part => part.substring(0, 2))
-      .join('') + teacherId.slice(-4);
-
-    // Generate random password
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const password = Array.from({ length: 10 }, () => 
-      charset[Math.floor(Math.random() * charset.length)]
-    ).join('');
-
-    return { username, password };
-  };
-
+  
   const handleAddTeacher = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const credentials = generateCredentials(newTeacher.teacher_name, newTeacher.teacher_id);
-      const created_at = new Date().toISOString();
-      
-      const response = await axios.post(`${API_BASE_URL}/teachers`, {
-        ...newTeacher,
-        ...credentials,
-        created_at
+      const response = await fetch(`${API_BASE_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'register-teacher',
+          ...newTeacher
+        })
       });
-
-      if (response.data.success) {
-        setRegistrationResult({
-          success: true,
-          message: 'Teacher registered successfully',
-          credentials
-        });
+  
+      const data = await response.json();
+      
+      setRegistrationResult({
+        success: data.success,
+        message: data.message,
+        credentials: data.credentials
+      });
+  
+      if (data.success) {
         fetchAllData();
       }
     } catch (error) {
       setRegistrationResult({
         success: false,
-        message: error.response?.data?.message || 'Error registering teacher'
+        message: 'Error registering teacher'
       });
     } finally {
       setLoading(false);
@@ -131,6 +155,12 @@ const AdminDashboard = ({onLogout}) => {
   const handleLogoutClick = () => {
     onLogout();
   };
+  
+  const filteredGrades = grades.filter(grade => {
+    const matchesSection = !selectedSection || grade.section === selectedSection;
+    const matchesSubject = !selectedSubject || grade.subject === selectedSubject;
+    return matchesSection && matchesSubject;
+  });
 
   const filteredStudents = students.filter(student => 
     student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -333,8 +363,86 @@ const AdminDashboard = ({onLogout}) => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.personal_email}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.username}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button
+                      <button
                           onClick={() => handleDeleteTeacher(teacher.teacher_id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Grades Table */}
+          <div className="col-span-1 lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-4 border-b">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <GraduationCap />
+                Grades by Section & Subject
+              </h2>
+              <div className="mt-2 flex gap-4">
+                <select
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  value={selectedSection}
+                >
+                  <option value="">All Sections</option>
+                  {Array.from(new Set(grades.map(grade => grade.section))).map(section => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
+                </select>
+                <select
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  value={selectedSubject}
+                >
+                  <option value="">All Subjects</option>
+                  {Array.from(new Set(grades.map(grade => grade.subject))).map(subject => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prelim</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Midterm</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Final</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">GWA</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredGrades.map((grade) => (
+                    <tr key={`${grade.student_num}-${grade.subject}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_num}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.section}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.subject}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.prelim_grade}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.midterm_grade}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.final_grade}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.gwa}</td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                        grade.remark === 'PASSED' ? 'text-green-600' : 
+                        grade.remark === 'FAILED' ? 'text-red-600' : 'text-yellow-600'
+                      }`}>
+                        {grade.remark}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => handleDeleteGrade(grade.ecr_name)}
                           className="text-red-600 hover:text-red-900"
                         >
                           <Trash2 size={20} />
