@@ -107,7 +107,7 @@ function LoginPage({ onLogin }) {
   return (
     <div className="flex min-h-screen bg-white">
       {/* Desktop View */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('./src/assets/bg-log.jpg')] bg-cover bg-center">
+      <div className="hidden lg:flex lg:w-1/2 relative bg-[url('/public/bg-log.jpg')] bg-cover bg-center">
         <div className="absolute inset-0 bg-black opacity-80"></div>
         <div className="relative z-10 flex flex-col justify-center px-12 text-white h-full">
           <h1 className="text-5xl font-bold leading-tight mb-4">
@@ -128,7 +128,7 @@ function LoginPage({ onLogin }) {
         <div className="lg:hidden flex flex-col items-center justify-center h-full px-6 text-center relative">
           {/* Background Image Container */}
           {/* https://marketplace.canva.com/EAE1N1HOFho/1/0/900w/canva-image-background-dark-green-phone-wallpaper-Ybf9RZciQtI.jpg */}
-          <div className="absolute inset-0 bg-[url('./src/assets/bg-log.jpg')] bg-cover bg-center">
+          <div className="absolute inset-0 bg-[url('/public/bg-log.jpg')] bg-cover bg-center">
             <div className="absolute inset-0 bg-black opacity-60"></div>
           </div>
           {/* Content */}
