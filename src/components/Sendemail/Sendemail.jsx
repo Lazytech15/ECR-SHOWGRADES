@@ -139,19 +139,19 @@ const createGradeNotificationEmail = (data) => {
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <span style="color: #4b5563;">Midterm: </span>
-                            <span style="font-weight: 600;">${(data.midtermGrade === 0.00 || data.midtermGrade === '0.00') ? '-' : data.midtermGrade}</span>
+                            <span style="font-weight: 600;">${(data.midtermGrade === 0.00 || data.midtermGrade === '0.00' || data.midtermGrade === 0 || data.midtermGrade === '0') ? '-' : data.midtermGrade}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <span style="color: #4b5563;">Final: </span>
-                            <span style="font-weight: 600;">${(data.finalGrade === 0.00 || data.finalGrade === '0.00') ? '-' : data.finalGrade}</span>
+                            <span style="font-weight: 600;">${(data.finalGrade === 0.00 || data.finalGrade ==='0.00' || data.finalGrade === 0 || data.finalGrade ==='0') ? '-' : data.finalGrade}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 8px;">
                             <span style="color: #4b5563;">GWA: </span>
-                            <span style="font-weight: 600;">${data.gwa}</span>
+                            <span style="font-weight: 600;">${(data.finalGrade === 0.00 || data.finalGrade ==='0.00' || data.finalGrade === 0 || data.finalGrade ==='0') ? '-' : data.gwa}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <span style="color: #4b5563;">Remark: </span>
-                            <span style="font-weight: 600;">${data.remark}</span>
+                            <span style="font-weight: 600;">${(data.finalGrade === 0.00 || data.finalGrade ==='0.00' || data.finalGrade === 0 || data.finalGrade ==='0') ? '-' : data.remark}</span>
                         </div>
                     </div>
                 </div>
@@ -165,14 +165,14 @@ const createGradeNotificationEmail = (data) => {
             <!-- Signature -->
             <div style="text-align: left; color: #4b5563;">
                 <p style="margin: 0;">Best regards,</p>
-                <p style="margin: 8px 0 0 0; font-weight: 600;">Faculty Unofficial</p>
+                <p style="margin: 8px 0 0 0; font-weight: 600;">ECR Online Grade Team</p>
             </div>
         </div>
     </div>`;
 
   return {
     content,
-    subject: `Grade Update Notification - ${data.courseCode}`
+    subject: `ECR Online Grade Update Notification - ${data.courseCode}`
   };
 };
 

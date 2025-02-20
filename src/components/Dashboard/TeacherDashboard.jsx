@@ -32,7 +32,10 @@ const TeacherDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [emailErrors, setEmailErrors] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
-
+  const [batchSize] = useState(5); // Process 5 records at a time
+  const [currentBatch, setCurrentBatch] = useState(0);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [failedUploads, setFailedUploads] = useState([]);
   // New state variables for enhanced features
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrimester, setSelectedTrimester] = useState('all');
@@ -60,9 +63,15 @@ const TeacherDashboard = ({ onLogout }) => {
     current: 0,
     total: 0
   });
+  const [rowCount, setRowCount] = useState({
+    original: 0,
+    valid: 0,
+    invalid: 0
+  });
 
   const userInfo = JSON.parse(localStorage.getItem('teacherInfo'));
   const teacher_id = userInfo ? userInfo.id : null;
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   // Fetch uploaded grades when the dashboard view is active
   useEffect(() => {
@@ -308,29 +317,160 @@ const TeacherDashboard = ({ onLogout }) => {
           return;
         }
   
-        const headers = parsedData[0];
-        const rows = parsedData.slice(1).map(row => {
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header.trim()] = (row[index] || '').trim();
+        const headers = parsedData[0].map(header => header.trim().toUpperCase());
+        const requiredColumns = ['STUDENT_NUM', 'STUDENT_NAME'];
+        const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+  
+        if (missingColumns.length > 0) {
+          setUploadStatus({
+            success: false,
+            message: `Missing required columns: ${missingColumns.join(', ')}`
           });
-          return obj;
+          return;
+        }
+  
+        // Initialize counters
+        let validRows = 0;
+        let invalidRows = 0;
+        const processedRows = [];
+        const invalidRowDetails = [];
+  
+        // Process each row after headers
+        parsedData.slice(1).forEach((row, index) => {
+          // Create object mapping headers to values
+          const rowData = {};
+          let isValid = true;
+          let invalidReason = [];
+  
+          headers.forEach((header, colIndex) => {
+            rowData[header] = (row[colIndex] || '').trim();
+          });
+  
+          // Validate required fields
+          if (!rowData.STUDENT_NUM || rowData.STUDENT_NUM.length === 0) {
+            isValid = false;
+            invalidReason.push('Missing student number');
+          }
+  
+          if (!rowData.STUDENT_NAME || rowData.STUDENT_NAME.length === 0) {
+            isValid = false;
+            invalidReason.push('Missing student name');
+          }
+  
+          // Check if row is completely empty
+          const hasAnyValue = Object.values(rowData).some(value => value.length > 0);
+          if (!hasAnyValue) {
+            isValid = false;
+            invalidReason.push('Empty row');
+          }
+  
+          if (isValid) {
+            processedRows.push(rowData);
+            validRows++;
+          } else {
+            invalidRows++;
+            invalidRowDetails.push({
+              rowNumber: index + 2, // +2 because we start after header and want 1-based index
+              reasons: invalidReason,
+              data: rowData
+            });
+          }
         });
   
-        // Filter out empty rows and compute grades
-        const validRows = rows.filter(row => Object.values(row).some(value => value));
-        const processedData = computeGrades(validRows);
+        // Update row count state
+        setRowCount({
+          original: parsedData.length - 1, // Subtract header row
+          valid: validRows,
+          invalid: invalidRows
+        });
+  
+        if (validRows === 0) {
+          setUploadStatus({
+            success: false,
+            message: 'No valid rows found in the CSV file'
+          });
+          return;
+        }
+  
+        // Show validation results
+        setUploadStatus({
+          success: true,
+          message: `CSV validation complete`,
+          validationDetails: {
+            totalRows: parsedData.length - 1,
+            validRows,
+            invalidRows,
+            invalidRowDetails
+          }
+        });
+  
+        // Process valid rows only
+        const processedData = computeGrades(processedRows);
         setCsvData(processedData);
   
       } catch (error) {
         console.error('Error parsing CSV:', error);
         setUploadStatus({
           success: false,
-          message: 'Error parsing CSV file'
+          message: 'Error parsing CSV file: ' + error.message
         });
       }
     };
     reader.readAsText(file);
+  };
+
+  const renderValidationSummary = () => {
+    if (!uploadStatus || !uploadStatus.validationDetails) return null;
+  
+    const { validationDetails } = uploadStatus;
+    
+    return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h4 className="text-lg font-semibold mb-2">CSV Validation Summary</h4>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="bg-white p-3 rounded shadow">
+            <p className="text-sm text-gray-600">Total Rows</p>
+            <p className="text-xl font-bold">{validationDetails.totalRows}</p>
+          </div>
+          <div className="bg-white p-3 rounded shadow">
+            <p className="text-sm text-gray-600">Valid Rows</p>
+            <p className="text-xl font-bold text-green-600">{validationDetails.validRows}</p>
+          </div>
+          <div className="bg-white p-3 rounded shadow">
+            <p className="text-sm text-gray-600">Invalid Rows</p>
+            <p className="text-xl font-bold text-red-600">{validationDetails.invalidRows}</p>
+          </div>
+        </div>
+        
+        {validationDetails.invalidRows > 0 && (
+          <div className="mt-4">
+            <h5 className="font-semibold mb-2">Invalid Rows Details:</h5>
+            <div className="max-h-60 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Row</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {validationDetails.invalidRowDetails.map((detail, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 whitespace-nowrap">{detail.rowNumber}</td>
+                      <td className="px-4 py-2">{detail.reasons.join(', ')}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500">
+                        {`Student #: ${detail.data.STUDENT_NUM || 'N/A'}, Name: ${detail.data.STUDENT_NAME || 'N/A'}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const sendRegistrationEmail = async (student) => {
@@ -478,163 +618,45 @@ const renderUploadStatus = () => {
   // Process CSV file and send notifications
   const processCSV = async () => {
     if (!selectedFile || csvData.length === 0) return;
-  
+
     setIsUploading(true);
-    setIsEmailSending(false);
     setEmailErrors([]);
-    
-    // Initialize progress states
-    const totalSteps = csvData.length * 3; // Registration, Grade Upload, Email
-    setUploadProgress({
-      phase: 'Registering students',
-      current: 0,
-      total: totalSteps
-    });
-  
+    setFailedUploads([]);
+    setProcessedCount(0);
+    setCurrentBatch(0);
+
     try {
-      // Step 1: Register students
-      const processedRows = [];
-      const skippedRows = [];
-      const newStudents = [];
-      let currentProgress = 0;
-  
-      for (const row of csvData) {
-        try {
-          setUploadProgress(prev => ({
-            ...prev,
-            phase: 'Registering students',
-            studentNum: row.STUDENT_NUM,
-            name: row.STUDENT_NAME,
-            current: currentProgress + 1
-          }));
-  
-          // Extract student name parts
-          const nameParts = row.STUDENT_NAME.split(' ');
-          const lastName = nameParts.pop();
-          const firstName = nameParts.shift();
-          const middleName = nameParts.join(' ') || null;
-  
-          const response = await fetch(`${API_URL}/auth`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              action: 'register',
-              studentId: row.STUDENT_NUM,
-              firstName,
-              middleName,
-              lastName,
-              email: row.EMAIL,
-              section: row.SECTION,
-              academic_term: row.ACADEMIC_TERM,
-              course: '-'
-            })
-          });
-  
-          const data = await response.json();
-          
-          if (response.status === 400 && data.message === 'Already registered') {
-            processedRows.push(row);
-          } else if (data.success) {
-            processedRows.push(row);
-            newStudents.push({
-              ...row,
-              credentials: data.credentials
-            });
-          } else {
-            skippedRows.push({
-              studentNum: row.STUDENT_NUM,
-              reason: data.message || 'Registration failed'
-            });
-          }
-  
-          currentProgress++;
-          
-        } catch (error) {
-          console.error('Error processing student:', row.STUDENT_NUM, error);
-          skippedRows.push({
-            studentNum: row.STUDENT_NUM,
-            reason: 'Registration process failed'
-          });
-        }
+      const totalBatches = Math.ceil(csvData.length / batchSize);
+      
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        setCurrentBatch(batchIndex + 1);
+        
+        const start = batchIndex * batchSize;
+        const end = Math.min(start + batchSize, csvData.length);
+        const currentBatchData = csvData.slice(start, end);
+
+        // Update progress
+        setUploadProgress({
+          phase: `Processing batch ${batchIndex + 1} of ${totalBatches}`,
+          current: processedCount,
+          total: csvData.length
+        });
+
+        // Process current batch
+        const { results, errors } = await processBatch(currentBatchData);
+
+        // Update progress and errors
+        setProcessedCount(prev => prev + results.length);
+        setFailedUploads(prev => [...prev, ...errors]);
       }
-  
-      // Step 2: Upload grades
-      setUploadProgress(prev => ({
-        ...prev,
-        phase: 'Uploading grades',
-        current: currentProgress
-      }));
-  
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-  
-      const uploadResponse = await fetch(`${API_URL}/grades`, {
-        method: 'POST',
-        body: formData
-      });
-  
-      const uploadData = await uploadResponse.json();
-  
-      if (!uploadData.success) {
-        throw new Error(uploadData.message || 'Grade upload failed');
-      }
-  
-      // Step 3: Send emails
-      setIsEmailSending(true);
-      setCurrentEmailProgress({
-        phase: 'Sending emails',
-        current: 0,
-        total: processedRows.length + newStudents.length
-      });
-  
-      // Send registration emails to new students
-      for (const student of newStudents) {
-        try {
-          await sendRegistrationEmail(student);
-          currentProgress++;
-          setCurrentEmailProgress(prev => ({
-            ...prev,
-            current: prev.current + 1
-          }));
-        } catch (error) {
-          setEmailErrors(prev => [...prev, {
-            student: student.STUDENT_NUM,
-            error: 'Failed to send registration email'
-          }]);
-        }
-      }
-  
-      // Send grade notification emails
-      for (const row of processedRows) {
-        try {
-          await sendGradeNotification(row.STUDENT_NUM, row);
-          currentProgress++;
-          setCurrentEmailProgress(prev => ({
-            ...prev,
-            current: prev.current + 1
-          }));
-        } catch (error) {
-          setEmailErrors(prev => [...prev, {
-            student: row.STUDENT_NUM,
-            error: 'Failed to send grade notification'
-          }]);
-        }
-      }
-  
-      // Update final status
+
+      // Final status update
       setUploadStatus({
         success: true,
-        message: `Upload completed successfully. ${newStudents.length} new students registered. ${emailErrors.length} email errors.`,
-        skippedRows,
-        newStudentsCount: newStudents.length
+        message: `Upload completed. ${processedCount} records processed successfully.`,
+        failedCount: failedUploads.length
       });
-  
-      // Reset states
-      setSelectedFile(null);
-      setCsvData([]);
-      
+
     } catch (error) {
       console.error('Upload Error:', error);
       setUploadStatus({
@@ -643,22 +665,131 @@ const renderUploadStatus = () => {
       });
     } finally {
       setIsUploading(false);
-      setIsEmailSending(false);
-      setUploadProgress({
-        phase: '',
-        studentNum: '',
-        name: '',
-        current: 0,
-        total: 0
-      });
-      setCurrentEmailProgress({
-        phase: '',
-        studentNum: '',
-        name: '',
-        current: 0,
-        total: 0
-      });
+      setSelectedFile(null);
+      setCsvData([]);
+      await fetchUploadedGrades();
     }
+  };
+
+   // Process grades in batches
+   const processBatch = async (batch) => {
+    const results = [];
+    const errors = [];
+
+    for (const row of batch) {
+      try {
+        // Step 1: Register or verify student
+        const studentResponse = await fetch(`${API_URL}/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'register',
+            studentId: row.STUDENT_NUM,
+            firstName: row.STUDENT_NAME.split(' ')[0],
+            middleName: row.STUDENT_NAME.split(' ').slice(1, -1).join(' ') || null,
+            lastName: row.STUDENT_NAME.split(' ').pop(),
+            email: row.EMAIL,
+            section: row.SECTION,
+            academic_term: row.ACADEMIC_TERM,
+            course: '-'
+          })
+        });
+
+        const studentData = await studentResponse.json();
+        
+        // Step 2: Upload grade
+        const gradeData = new FormData();
+        Object.entries(row).forEach(([key, value]) => {
+          gradeData.append(key.toLowerCase(), value);
+        });
+
+        const gradeResponse = await fetch(`${API_URL}/grades`, {
+          method: 'POST',
+          body: gradeData
+        });
+
+        const gradeResult = await gradeResponse.json();
+
+        if (!gradeResult.success) {
+          throw new Error(gradeResult.message || 'Grade upload failed');
+        }
+
+        // Step 3: Send email notification
+        await sendGradeNotification(row.STUDENT_NUM, row);
+
+        // Handle new student registration email
+        if (studentData.success && !studentData.message?.includes('Already registered')) {
+          await sendRegistrationEmail({
+            ...row,
+            credentials: studentData.credentials
+          });
+        }
+
+        results.push({
+          studentNum: row.STUDENT_NUM,
+          status: 'success'
+        });
+
+      } catch (error) {
+        console.error('Error processing record:', error);
+        errors.push({
+          studentNum: row.STUDENT_NUM,
+          studentName: row.STUDENT_NAME,
+          courseCode: row.COURSE_CODE,
+          section: row.SECTION,
+          academicYear: row.ACADEMIC_YEAR,
+          academicTerm: row.ACADEMIC_TERM,
+          error: error.message || 'Processing failed',
+          rowData: row // Store the complete row data
+        });
+      }
+    }
+
+    return { results, errors };
+  };
+
+  const renderErrorDetails = () => {
+    if (!showErrorDetails || failedUploads.length === 0) return null;
+
+    return (
+      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-red-600">Failed Uploads Details</h3>
+          <button
+            onClick={() => setShowErrorDetails(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Term</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {failedUploads.map((error, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{error.studentNum}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{error.studentName}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{error.courseCode}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{error.section}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{`${error.academicTerm} ${error.academicYear}`}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-red-600">{error.error}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
   };
 
   // Handle logout
@@ -1020,6 +1151,8 @@ const renderUploadView = () => {
             </table>
           </div>
 
+          {renderValidationSummary()}
+
           {/* Upload Button */}
           <div className="mt-4">
             <button 
@@ -1076,44 +1209,32 @@ const renderLoadingStates = () => (
     <div className="flex items-center">
       <LoadingSpinner />
       <span className="ml-2">
-        {isUploading ? (
-          <div className="space-y-1">
-            <p className="font-medium">{uploadProgress.phase}</p>
-            <p className="text-sm text-gray-600">
-              Progress: {uploadProgress.current}/{uploadProgress.total}
-            </p>
-            {uploadProgress.studentNum && (
-              <p className="text-sm text-gray-600">
-                Currently processing: {uploadProgress.studentNum} - {uploadProgress.name}
-              </p>
-            )}
-          </div>
-        ) : isEmailSending ? (
-          <div className="space-y-1">
-            <p className="font-medium">Sending Notifications</p>
-            <p className="text-sm text-gray-600">
-              Progress: {currentEmailProgress.current}/{currentEmailProgress.total}
-            </p>
-            {currentEmailProgress.studentNum && (
-              <p className="text-sm text-gray-600">
-                Currently processing: {currentEmailProgress.studentNum} - {currentEmailProgress.name}
-              </p>
-            )}
-          </div>
-        ) : null}
+        <div className="space-y-1">
+          <p className="font-medium">{uploadProgress.phase}</p>
+          <p className="text-sm text-gray-600">
+            Overall Progress: {processedCount}/{csvData.length} records
+          </p>
+          <p className="text-sm text-gray-600">
+            Current Batch: {currentBatch} of {Math.ceil(csvData.length / batchSize)}
+          </p>
+          {failedUploads.length > 0 && (
+            <button
+              onClick={() => setShowErrorDetails(true)}
+              className="text-sm text-red-600 hover:text-red-800 font-medium"
+            >
+              Failed Uploads: {failedUploads.length} - Click to view details
+            </button>
+          )}
+        </div>
       </span>
     </div>
     <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5">
       <div 
         className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-        style={{ 
-          width: `${(isUploading ? 
-            (uploadProgress.current / uploadProgress.total) : 
-            (currentEmailProgress.current / currentEmailProgress.total)
-          ) * 100}%` 
-        }}
+        style={{ width: `${(processedCount / csvData.length) * 100}%` }}
       ></div>
     </div>
+    {renderErrorDetails()}
   </div>
 );
 

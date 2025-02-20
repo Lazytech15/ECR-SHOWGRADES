@@ -11,14 +11,23 @@ const AdminDashboard = ({ onLogout }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [activeTab, setActiveTab] = useState('students');
+  const [selectedGrades, setSelectedGrades] = useState([]);
   const [newTeacher, setNewTeacher] = useState({
     teacher_id: '',
     teacher_name: '',
     personal_email: '',
   });
+  const [operationStatus, setOperationStatus] = useState({
+    type: null, // 'delete' | 'update' | null
+    items: [], // array of items being processed
+    completed: [], // array of completed items
+    error: null
+  });
   const [registrationResult, setRegistrationResult] = useState(null);
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [selectedTeachers, setSelectedTeachers] = useState([]);
 
   const API_BASE_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
@@ -26,20 +35,64 @@ const AdminDashboard = ({ onLogout }) => {
     fetchAllData();
   }, []);
 
+  const removeDuplicateGrades = (grades) => {
+    // Create a map to store the latest entry for each student-course combination
+    const latestGrades = new Map();
+    
+    // Sort grades by upload timestamp (assuming there's a timestamp field)
+    // If no timestamp exists, we'll consider the order they appear in the array
+    grades.forEach((grade) => {
+      const key = `${grade.student_num}-${grade.course_code}`;
+      
+      if (!latestGrades.has(key) || 
+          (grade.timestamp && latestGrades.get(key).timestamp < grade.timestamp)) {
+        latestGrades.set(key, grade);
+      }
+    });
+    
+    // Convert map values back to array
+    return Array.from(latestGrades.values());
+  };
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // Use handleGetAllData endpoint for fetching all data
-      const response = await axios.post(`${API_BASE_URL}/auth`, {
-        action: 'get-alldata'
+      const response = await fetch(`${API_BASE_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'get-alldata'
+        })
       });
 
-      if (response.data.success) {
-        setStudents(response.data.students || []);
-        setTeachers(response.data.teachers || []);
-        setGrades(response.data.grades || []);
+      const data = await response.json();
+
+      if (data.success) {
+        // Sort students by ID
+        const sortedStudents = (data.students || []).sort((a, b) => 
+          a.student_id.localeCompare(b.student_id)
+        );
+        
+        // Sort teachers by ID
+        const sortedTeachers = (data.teachers || []).sort((a, b) => 
+          a.teacher_id.localeCompare(b.teacher_id)
+        );
+        
+        // Remove duplicates and sort grades
+        const uniqueGrades = removeDuplicateGrades(data.grades || []);
+        const sortedGrades = uniqueGrades.sort((a, b) => {
+          const compareStudent = a.student_num.localeCompare(b.student_num);
+          if (compareStudent !== 0) return compareStudent;
+          return a.course_code.localeCompare(b.course_code);
+        });
+
+        setStudents(sortedStudents);
+        setTeachers(sortedTeachers);
+        setGrades(sortedGrades);
       } else {
-        console.error('Failed to fetch data:', response.data.message);
+        console.error('Failed to fetch data:', data.message);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -50,17 +103,97 @@ const AdminDashboard = ({ onLogout }) => {
   const handleDeleteStudent = async (studentId) => {
     if (!confirm('Are you sure you want to delete this student?')) return;
     
+    setOperationStatus({
+      type: 'delete',
+      items: [studentId],
+      completed: [],
+      error: null
+    });
+    
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth`, {
-        action: 'delete-student',
-        studentId
+      const response = await fetch(`${API_BASE_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'delete-student',
+          studentId: studentId
+        })
       });
       
-      if (response.data.success) {
-        fetchAllData(); // Refresh all data after deletion
+      const data = await response.json();
+      if (data.success) {
+        setOperationStatus(prev => ({
+          ...prev,
+          completed: [...prev.completed, studentId]
+        }));
+        setStudents(prev => prev.filter(student => student.student_id !== studentId));
       }
     } catch (error) {
-      console.error('Error deleting student:', error);
+      setOperationStatus(prev => ({
+        ...prev,
+        error: `Failed to delete student: ${error.message}`
+      }));
+    } finally {
+      setTimeout(() => {
+        setOperationStatus({ type: null, items: [], completed: [], error: null });
+      }, 2000);
+    }
+  };
+
+  const handleBatchDeleteStudents = async () => {
+    if (!selectedStudents.length) return;
+    if (!confirm(`Are you sure you want to delete ${selectedStudents.length} selected students?`)) return;
+    
+    setOperationStatus({
+      type: 'delete',
+      items: selectedStudents,
+      completed: [],
+      error: null
+    });
+    
+    for (const studentId of selectedStudents) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            action: 'delete-student',
+            studentId: studentId
+          })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          setOperationStatus(prev => ({
+            ...prev,
+            completed: [...prev.completed, studentId]
+          }));
+          setStudents(prev => prev.filter(student => student.student_id !== studentId));
+        }
+      } catch (error) {
+        setOperationStatus(prev => ({
+          ...prev,
+          error: `Failed to delete some students: ${error.message}`
+        }));
+        break;
+      }
+    }
+    
+    setSelectedStudents([]);
+    setTimeout(() => {
+      setOperationStatus({ type: null, items: [], completed: [], error: null });
+    }, 2000);
+  };
+
+  const handleSelectAllStudents = (e) => {
+    if (e.target.checked) {
+      setSelectedStudents(filteredStudents.map(student => student.student_id));
+    } else {
+      setSelectedStudents([]);
     }
   };
 
@@ -68,35 +201,213 @@ const AdminDashboard = ({ onLogout }) => {
     if (!confirm('Are you sure you want to delete this teacher?')) return;
     
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth`, {
-        action: 'delete-teacher',
-        teacherId
+      const response = await fetch(`${API_BASE_URL}/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'delete-teacher',
+          teacher_id: teacherId
+        })
       });
       
-      if (response.data.success) {
-        fetchAllData(); // Refresh all data after deletion
+      const data = await response.json();
+      if (data.success) {
+        fetchAllData();
       }
     } catch (error) {
       console.error('Error deleting teacher:', error);
     }
   };
 
-  const handleDeleteGrade = async (ecrName) => {
-    if (!confirm('Are you sure you want to delete this grade entry?')) return;
+  const handleBatchDeleteTeachers = async () => {
+    if (!selectedTeachers.length) return;
+    if (!confirm(`Are you sure you want to delete ${selectedTeachers.length} selected teachers?`)) return;
     
+    setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth`, {
-        action: 'delete-grade',
-        ecr_name: ecrName
-      });
+      const deletePromises = selectedTeachers.map(teacherId => 
+        fetch(`${API_BASE_URL}/auth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            action: 'delete-teacher',
+            teacherId: teacherId
+          })
+        }).then(res => res.json())
+      );
       
-      if (response.data.success) {
-        fetchAllData(); // Refresh all data after deletion
-      }
+      await Promise.all(deletePromises);
+      setSelectedTeachers([]);
+      fetchAllData();
     } catch (error) {
-      console.error('Error deleting grade:', error);
+      console.error('Error deleting multiple teachers:', error);
     }
+    setLoading(false);
   };
+
+    // Selection handlers for teachers
+    const handleCheckTeacher = (teacherId) => {
+      setSelectedTeachers(prev => 
+        prev.includes(teacherId)
+          ? prev.filter(id => id !== teacherId)
+          : [...prev, teacherId]
+      );
+    };
+  
+    const handleSelectAllTeachers = (e) => {
+      if (e.target.checked) {
+        setSelectedTeachers(filteredTeachers.map(teacher => teacher.teacher_id));
+      } else {
+        setSelectedTeachers([]);
+      }
+    };
+
+    const handleDeleteGrade = async (ecrName, studentNum, courseCode) => {
+      if (!confirm('Are you sure you want to delete this grade entry?')) return;
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            action: 'delete-grade',
+            ecr_name: ecrName,
+            student_num: studentNum,
+            course_code: courseCode
+          })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          fetchAllData();
+        } else {
+          console.error('Failed to delete grade:', data.message);
+        }
+      } catch (error) {
+        console.error('Error deleting grade:', error);
+      }
+    };
+
+    const handleDeleteMultipleGrades = async () => {
+      if (!selectedGrades.length) return;
+      if (!confirm(`Are you sure you want to delete ${selectedGrades.length} selected grades?`)) return;
+    
+      setLoading(true);
+      setOperationStatus({
+        type: 'delete',
+        items: selectedGrades,
+        completed: [],
+        error: null
+      });
+    
+      try {
+        // Map the selected grade IDs to their full grade objects
+        const gradesToDelete = selectedGrades.map(ecrName => {
+          const gradeData = grades.find(g => g.ecr_name === ecrName);
+          if (!gradeData) {
+            throw new Error(`Could not find grade data for ${ecrName}`);
+          }
+          return {
+            ecr_name: gradeData.ecr_name,
+            student_num: gradeData.student_num,
+            course_code: gradeData.course_code
+          };
+        });
+    
+        // Process in batches of 10
+        const batchSize = 10;
+        for (let i = 0; i < gradesToDelete.length; i += batchSize) {
+          const batch = gradesToDelete.slice(i, i + batchSize);
+          
+          console.log('Sending batch for deletion:', batch); // Debug log
+    
+          const response = await fetch(`${API_BASE_URL}/auth`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              action: 'delete-multiple-grades',
+              grades: batch
+            })
+          });
+    
+          const data = await response.json();
+          
+          if (data.success) {
+            // Mark successful deletions
+            const deletedEcrNames = batch.map(g => g.ecr_name);
+            setOperationStatus(prev => ({
+              ...prev,
+              completed: [...prev.completed, ...deletedEcrNames]
+            }));
+    
+            // Remove deleted grades from state
+            setGrades(prevGrades => 
+              prevGrades.filter(grade => !deletedEcrNames.includes(grade.ecr_name))
+            );
+          } else {
+            throw new Error(data.message || 'Failed to delete grades');
+          }
+        }
+    
+        // Clear selections after successful deletion
+        setSelectedGrades([]);
+    
+      } catch (error) {
+        console.error('Error in batch deletion:', error);
+        setOperationStatus(prev => ({
+          ...prev,
+          error: `Failed to delete grades: ${error.message}`
+        }));
+      } finally {
+        setLoading(false);
+        await fetchAllData(); // Refresh data
+        
+        // Clear operation status after delay
+        setTimeout(() => {
+          setOperationStatus({ type: null, items: [], completed: [], error: null });
+        }, 2000);
+      }
+    };   
+
+    const handleCheckGrade = (ecrName) => {
+      if (!ecrName) {
+        console.warn('Attempted to check grade with null ecr_name');
+        return;
+      }
+      
+      setSelectedGrades(prev => 
+        prev.includes(ecrName)
+          ? prev.filter(name => name !== ecrName)
+          : [...prev, ecrName]
+      );
+    };
+
+    const handleSelectAllGrades = (e) => {
+      if (e.target.checked) {
+        const validGrades = filteredGrades
+          .filter(grade => grade.ecr_name) // Only select grades with valid ecr_name
+          .map(grade => grade.ecr_name);
+        setSelectedGrades(validGrades);
+      } else {
+        setSelectedGrades([]);
+      }
+    };
+
+    const handleCheckStudent = (studentId) => {
+      setSelectedStudents(prev => 
+        prev.includes(studentId)
+          ? prev.filter(id => id !== studentId)
+          : [...prev, studentId]
+      );
+    };
   
   const handleAddTeacher = async (e) => {
     e.preventDefault();
@@ -174,183 +485,343 @@ const AdminDashboard = ({ onLogout }) => {
   };
   
   // Filter functions
-  const filteredGrades = grades.filter(grade => {
-    const matchesSection = !selectedSection || grade.section === selectedSection;
-    const matchesSubject = !selectedSubject || grade.course_code === selectedSubject;
-    const matchesSearch = !searchTerm || 
-      grade.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      grade.student_num?.includes(searchTerm);
-    return matchesSection && matchesSubject && matchesSearch;
-  });
+  // Filter functions with sorting preserved
+  const filteredStudents = students
+    .filter(student => 
+      student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.student_id?.includes(searchTerm)
+    );
 
-  const filteredStudents = students.filter(student => 
-    student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.student_id?.includes(searchTerm)
-  );
+  const filteredTeachers = teachers
+    .filter(teacher =>
+      teacher.teacher_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      teacher.personal_email?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-  const filteredTeachers = teachers.filter(teacher =>
-    teacher.teacher_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    teacher.personal_email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredGrades = grades
+    .filter(grade => {
+      const matchesSection = !selectedSection || grade.section === selectedSection;
+      const matchesSubject = !selectedSubject || grade.course_code === selectedSubject;
+      const matchesSearch = !searchTerm || 
+        grade.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        grade.student_num?.includes(searchTerm);
+      return matchesSection && matchesSubject && matchesSearch;
+    });
 
-  const renderStudentsTable = () => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <GraduationCap />
-          Students
-        </h2>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredStudents.map((student) => (
-              <tr key={student.student_id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.full_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.course}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <button
-                    onClick={() => handleDeleteStudent(student.student_id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </td>
+    const renderStudentsTable = () => (
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <GraduationCap />
+            Students
+          </h2>
+          {selectedStudents.length > 0 && (
+            <button
+              onClick={handleBatchDeleteStudents}
+              className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-2"
+            >
+              <Trash2 size={20} />
+              Delete Selected ({selectedStudents.length})
+            </button>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <input
+                    type="checkbox"
+                    checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
+                    onChange={handleSelectAllStudents}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderTeachersTable = () => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Users />
-          Teachers
-        </h2>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredTeachers.map((teacher) => (
-              <tr key={teacher.teacher_id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.teacher_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.personal_email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.username}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <button
-                    onClick={() => handleDeleteTeacher(teacher.teacher_id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderGradesTable = () => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <BookOpen />
-          Grades
-        </h2>
-        <div className="mt-2 flex gap-4">
-          <select
-            className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onChange={(e) => setSelectedSection(e.target.value)}
-            value={selectedSection}
-          >
-            <option value="">All Sections</option>
-            {Array.from(new Set(grades.map(grade => grade.section))).map((section, index) => (
-              <option key={index} value={section}>{section}</option>
-            ))}
-          </select>
-          <select
-            className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onChange={(e) => setSelectedSubject(e.target.value)}
-            value={selectedSubject}
-          >
-            <option value="">All Subjects</option>
-            {Array.from(new Set(grades.map(grade => grade.course_code))).map((subject, index) => (
-              <option key={index} value={subject}>{subject}</option>
-            ))}
-          </select>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredStudents.map((student, index) => (
+                <tr key={student.student_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedStudents.includes(student.student_id)}
+                      onChange={() => handleCheckStudent(student.student_id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.full_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.course}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button
+                      onClick={() => handleDeleteStudent(student.student_id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">COURSE CODE</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prelim</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Midterm</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Final</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">GWA</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredGrades.map((grade) => (
-              <tr key={`${grade.student_num}-${grade.course_code}`} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_num}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.section}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.course_code}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.prelim_grade}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.midterm_grade}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.final_grade}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.gwa}</td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                  grade.remark === 'PASSED' ? 'text-green-600' : 
-                  grade.remark === 'FAILED' ? 'text-red-600' : 'text-yellow-600'
-                }`}>
-                  {grade.remark}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <button
-                    onClick={() => handleDeleteGrade(grade.ecr_name)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </td>
+    );
+  
+    // Update the renderTeachersTable function to include checkboxes
+    const renderTeachersTable = () => (
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Users />
+            Teachers
+          </h2>
+          {selectedTeachers.length > 0 && (
+            <button
+              onClick={handleBatchDeleteTeachers}
+              className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mt-2"
+            >
+              <Trash2 size={20} />
+              Delete Selected ({selectedTeachers.length})
+            </button>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <input
+                    type="checkbox"
+                    checked={selectedTeachers.length === filteredTeachers.length && filteredTeachers.length > 0}
+                    onChange={handleSelectAllTeachers}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredTeachers.map((teacher, index) => (
+                <tr key={teacher.teacher_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedTeachers.includes(teacher.teacher_id)}
+                      onChange={() => handleCheckTeacher(teacher.teacher_id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.teacher_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.personal_email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.username}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button
+                      onClick={() => handleDeleteTeacher(teacher.teacher_id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+    );
+
+const renderGradesTable = () => (
+  <div className="bg-white rounded-lg shadow overflow-hidden">
+  <div className="p-4 border-b">
+    <h2 className="text-lg font-semibold flex items-center gap-2">
+      <BookOpen />
+      Grades
+    </h2>
+    
+    {/* Filters and Actions Section */}
+    <div className="mt-4 flex flex-wrap gap-4">
+      {/* Section Filter */}
+      <div className="flex-1 min-w-[200px]">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
+        <select
+          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          onChange={(e) => setSelectedSection(e.target.value)}
+          value={selectedSection}
+        >
+          <option value="">All Sections</option>
+          {Array.from(new Set(grades.map(grade => grade.section)))
+            .sort()
+            .map((section) => (
+              <option key={section} value={section}>{section}</option>
+            ))
+          }
+        </select>
+      </div>
+
+      {/* Subject Filter */}
+      <div className="flex-1 min-w-[200px]">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+        <select
+          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          onChange={(e) => setSelectedSubject(e.target.value)}
+          value={selectedSubject}
+        >
+          <option value="">All Subjects</option>
+          {Array.from(new Set(grades.map(grade => grade.course_code)))
+            .sort()
+            .map((subject) => (
+              <option key={subject} value={subject}>{subject}</option>
+            ))
+          }
+        </select>
+      </div>
+
+      {/* Batch Delete Button */}
+      {selectedGrades.length > 0 && !loading && (
+        <div className="flex items-end">
+          <button
+            onClick={handleDeleteMultipleGrades}
+            className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+            disabled={loading}
+          >
+            <Trash2 size={20} />
+            Delete Selected ({selectedGrades.length})
+          </button>
+        </div>
+      )}
     </div>
-  );
+  </div>
+
+  {/* Table Section */}
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <input
+              type="checkbox"
+              checked={selectedGrades.length === filteredGrades.length && filteredGrades.length > 0}
+              onChange={handleSelectAllGrades}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Code</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prelim</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Midterm</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GWA</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {loading ? (
+          <tr>
+            <td colSpan="12" className="px-6 py-4 text-center text-gray-500">
+              <div className="flex items-center justify-center">
+                <RefreshCw className="animate-spin mr-2" size={20} />
+                Loading...
+              </div>
+            </td>
+          </tr>
+        ) : filteredGrades.length === 0 ? (
+          <tr>
+            <td colSpan="12" className="px-6 py-4 text-center text-gray-500">
+              No grades found
+            </td>
+          </tr>
+        ) : (
+          filteredGrades.map((grade, index) => (
+            <tr 
+              key={`${grade.student_num}-${grade.course_code}-${grade.timestamp || index}`}
+              className="hover:bg-gray-50 transition-colors"
+            >
+              <td className="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={selectedGrades.includes(grade.ecr_name)}
+                  onChange={() => handleCheckGrade(grade.ecr_name)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {index + 1}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.student_num}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.student_name}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.section}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.course_code}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.prelim_grade}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.midterm_grade}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.final_grade}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {grade.gwa}
+              </td>
+              <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                grade.remark === 'PASSED' ? 'text-green-600' : 
+                grade.remark === 'FAILED' ? 'text-red-600' : 
+                grade.remark === 'INCOMPLETE' ? 'text-yellow-600' :
+                'text-gray-900'
+              }`}>
+                {grade.remark}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <button
+                onClick={() => handleDeleteGrade(grade.ecr_name, grade.student_num, grade.course_code)}
+                className="text-red-600 hover:text-red-900 transition-colors"
+                title="Delete grade"
+              >
+                <Trash2 size={20} />
+              </button>
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+
+  {/* Results Summary */}
+  <div className="px-6 py-4 bg-gray-50 border-t">
+    <p className="text-sm text-gray-600">
+      Showing {filteredGrades.length} of {grades.length} grades
+      {selectedSection && ` in section ${selectedSection}`}
+      {selectedSubject && ` for ${selectedSubject}`}
+    </p>
+  </div>
+</div>
+    );
 
   const renderContent = () => {
     switch (activeTab) {
