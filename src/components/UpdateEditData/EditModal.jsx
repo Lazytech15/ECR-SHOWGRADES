@@ -262,7 +262,8 @@ const GradeEditModal = ({ grade, onClose, onUpdate }) => {
       prelimGrade: grade.prelim_grade || '',
       midtermGrade: grade.midterm_grade || '',
       finalGrade: grade.final_grade || '',
-      remark: grade.remark || ''
+      remark: grade.remark || '',
+      email: grade.email || ''
     });
   
     const handleSubmit = async (e) => {
@@ -288,7 +289,7 @@ const GradeEditModal = ({ grade, onClose, onUpdate }) => {
           await sendEmail({
             template: EmailTemplates.GRADE_NOTIFICATION,
             data: {
-              email: grade.student_email,
+              email: grade.email,
               studentName: grade.student_name,
               courseCode: grade.course_code,
               courseDescription: grade.course_description,
