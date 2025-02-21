@@ -538,9 +538,14 @@ const AdminDashboard = ({ onLogout }) => {
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Full Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trimester</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -559,6 +564,11 @@ const AdminDashboard = ({ onLogout }) => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.full_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.course}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.section}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.trimester}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.username}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.password}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
                       onClick={() => handleDeleteStudent(student.student_id)}
@@ -643,184 +653,184 @@ const AdminDashboard = ({ onLogout }) => {
       </div>
     );
 
-const renderGradesTable = () => (
-  <div className="bg-white rounded-lg shadow overflow-hidden">
-  <div className="p-4 border-b">
-    <h2 className="text-lg font-semibold flex items-center gap-2">
-      <BookOpen />
-      Grades
-    </h2>
-    
-    {/* Filters and Actions Section */}
-    <div className="mt-4 flex flex-wrap gap-4">
-      {/* Section Filter */}
-      <div className="flex-1 min-w-[200px]">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
-        <select
-          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          onChange={(e) => setSelectedSection(e.target.value)}
-          value={selectedSection}
-        >
-          <option value="">All Sections</option>
-          {Array.from(new Set(grades.map(grade => grade.section)))
-            .sort()
-            .map((section) => (
-              <option key={section} value={section}>{section}</option>
-            ))
-          }
-        </select>
-      </div>
-
-      {/* Subject Filter */}
-      <div className="flex-1 min-w-[200px]">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-        <select
-          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          onChange={(e) => setSelectedSubject(e.target.value)}
-          value={selectedSubject}
-        >
-          <option value="">All Subjects</option>
-          {Array.from(new Set(grades.map(grade => grade.course_code)))
-            .sort()
-            .map((subject) => (
-              <option key={subject} value={subject}>{subject}</option>
-            ))
-          }
-        </select>
-      </div>
-
-      {/* Batch Delete Button */}
-      {selectedGrades.length > 0 && !loading && (
-        <div className="flex items-end">
-          <button
-            onClick={handleDeleteMultipleGrades}
-            className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-            disabled={loading}
-          >
-            <Trash2 size={20} />
-            Delete Selected ({selectedGrades.length})
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-
-  {/* Table Section */}
-  <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-200">
-      <thead className="bg-gray-50">
-        <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            <input
-              type="checkbox"
-              checked={selectedGrades.length === filteredGrades.length && filteredGrades.length > 0}
-              onChange={handleSelectAllGrades}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-          </th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Code</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prelim</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Midterm</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GWA</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody className="bg-white divide-y divide-gray-200">
-        {loading ? (
-          <tr>
-            <td colSpan="12" className="px-6 py-4 text-center text-gray-500">
-              <div className="flex items-center justify-center">
-                <RefreshCw className="animate-spin mr-2" size={20} />
-                Loading...
-              </div>
-            </td>
-          </tr>
-        ) : filteredGrades.length === 0 ? (
-          <tr>
-            <td colSpan="12" className="px-6 py-4 text-center text-gray-500">
-              No grades found
-            </td>
-          </tr>
-        ) : (
-          filteredGrades.map((grade, index) => (
-            <tr 
-              key={`${grade.student_num}-${grade.course_code}-${grade.timestamp || index}`}
-              className="hover:bg-gray-50 transition-colors"
-            >
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={selectedGrades.includes(grade.ecr_name)}
-                  onChange={() => handleCheckGrade(grade.ecr_name)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {index + 1}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.student_num}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.student_name}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.section}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.course_code}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.prelim_grade}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.midterm_grade}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.final_grade}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {grade.gwa}
-              </td>
-              <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                grade.remark === 'PASSED' ? 'text-green-600' : 
-                grade.remark === 'FAILED' ? 'text-red-600' : 
-                grade.remark === 'INCOMPLETE' ? 'text-yellow-600' :
-                'text-gray-900'
-              }`}>
-                {grade.remark}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button
-                onClick={() => handleDeleteGrade(grade.ecr_name, grade.student_num, grade.course_code)}
-                className="text-red-600 hover:text-red-900 transition-colors"
-                title="Delete grade"
+    const renderGradesTable = () => (
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <BookOpen />
+            Grades
+          </h2>
+          
+          {/* Filters and Actions Section */}
+          <div className="mt-4 flex flex-wrap gap-4">
+            {/* Section Filter */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
+              <select
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                onChange={(e) => setSelectedSection(e.target.value)}
+                value={selectedSection}
               >
-                <Trash2 size={20} />
-              </button>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-
-  {/* Results Summary */}
-  <div className="px-6 py-4 bg-gray-50 border-t">
-    <p className="text-sm text-gray-600">
-      Showing {filteredGrades.length} of {grades.length} grades
-      {selectedSection && ` in section ${selectedSection}`}
-      {selectedSubject && ` for ${selectedSubject}`}
-    </p>
-  </div>
-</div>
+                <option value="">All Sections</option>
+                {Array.from(new Set(grades.map(grade => grade.section)))
+                  .sort()
+                  .map((section) => (
+                    <option key={section} value={section}>{section}</option>
+                  ))
+                }
+              </select>
+            </div>
+    
+            {/* Subject Filter */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <select
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                value={selectedSubject}
+              >
+                <option value="">All Subjects</option>
+                {Array.from(new Set(grades.map(grade => grade.course_code)))
+                  .sort()
+                  .map((subject) => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))
+                }
+              </select>
+            </div>
+    
+            {/* Batch Delete Button */}
+            {selectedGrades.length > 0 && !loading && (
+              <div className="flex items-end">
+                <button
+                  onClick={handleDeleteMultipleGrades}
+                  className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                  disabled={loading}
+                >
+                  <Trash2 size={20} />
+                  Delete Selected ({selectedGrades.length})
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+    
+        {/* Table Section */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedGrades.length === filteredGrades.length && filteredGrades.length > 0}
+                    onChange={handleSelectAllGrades}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Number</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Term</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Code</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prelim Grade</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Midterm Grade</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Grade</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Units</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faculty ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faculty Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ECR Name</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan="21" className="px-6 py-4 text-center text-gray-500">
+                    <div className="flex items-center justify-center">
+                      <RefreshCw className="animate-spin mr-2" size={20} />
+                      Loading...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredGrades.length === 0 ? (
+                <tr>
+                  <td colSpan="21" className="px-6 py-4 text-center text-gray-500">
+                    No grades found
+                  </td>
+                </tr>
+              ) : (
+                filteredGrades.map((grade, index) => (
+                  <tr 
+                    key={`${grade.student_num}-${grade.course_code}-${grade.timestamp || index}`}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedGrades.includes(grade.ecr_name)}
+                        onChange={() => handleCheckGrade(grade.ecr_name)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_num}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.academic_year}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.academic_term}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.section}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.day}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.time}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.course_code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.course_description}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.prelim_grade}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.midterm_grade}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.final_grade}</td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      grade.remark === 'PASSED' ? 'text-green-600' : 
+                      grade.remark === 'FAILED' ? 'text-red-600' : 
+                      grade.remark === 'INCOMPLETE' ? 'text-yellow-600' :
+                      'text-gray-900'
+                    }`}>
+                      {grade.remark}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.credit_units}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.faculty_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.faculty_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.ecr_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleDeleteGrade(grade.ecr_name, grade.student_num, grade.course_code)}
+                        className="text-red-600 hover:text-red-900 transition-colors"
+                        title="Delete grade"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+    
+        {/* Results Summary */}
+        <div className="px-6 py-4 bg-gray-50 border-t">
+          <p className="text-sm text-gray-600">
+            Showing {filteredGrades.length} of {grades.length} grades
+            {selectedSection && ` in section ${selectedSection}`}
+            {selectedSubject && ` for ${selectedSubject}`}
+          </p>
+        </div>
+      </div>
     );
 
   const renderContent = () => {
