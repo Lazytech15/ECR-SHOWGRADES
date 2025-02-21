@@ -11,7 +11,8 @@ import {
   LogOut,
   AlertTriangle,
   ChevronDown,
-  FileClock
+  FileClock,
+  Search
 } from 'lucide-react';
 import LoadingSpinner from '../Loadinganimation/Loading';
 import StudentSettings from '../Studentsettings/Studentsettings';
@@ -29,6 +30,8 @@ const StudentDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCourseHistory, setSelectedCourseHistory] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredGrades, setFilteredGrades] = useState({});
 
   // Handle logout
   const handleLogout = () => {
@@ -110,75 +113,109 @@ const StudentDashboard = ({ onLogout }) => {
   }, [fetchData]);
   
   // Organize grades by trimester
-// First, keep the organizeGradesByTrimester and getSemesterInfo functions as shown before
-const organizeGradesByTrimester = (gradesData) => {
-  // First, group grades by academic year, trimester and course code
-  const groupedGrades = gradesData.reduce((acc, grade) => {
-    // Extract year from created_at date
-    const gradeDate = new Date(grade.created_at);
-    const academicYear = gradeDate.getFullYear();
-    
-    // Create a unique semester identifier that includes both year and term
-    const semester = `Academic Term ${grade.academic_term} (${academicYear})`;
-    const courseKey = `${grade.course_code}-${grade.course_description}`;
-    
-    if (!acc[semester]) {
-      acc[semester] = {};
-    }
-    
-    if (!acc[semester][courseKey]) {
-      acc[semester][courseKey] = [];
-    }
-    
-    // Add grade entry to the course array
-    acc[semester][courseKey].push({
-      subject: grade.course_description,
-      courseCode: grade.course_code,
-      section: grade.section,
-      prelimGrade: grade.prelim_grade,
-      midtermGrade: grade.midterm_grade,
-      finalGrade: grade.final_grade,
-      remark: grade.remark,
-      teacher: grade.faculty_name,
-      created: grade.created_at,
-      updated: grade.updated_at,
-      academicYear: academicYear,
-      academicTerm: grade.academic_term
-    });
-    
-    return acc;
-  }, {});
-
-  // Then, sort grades within each course by date and flatten the structure
-  const sortedGrades = Object.entries(groupedGrades).reduce((acc, [semester, courses]) => {
-    acc[semester] = Object.values(courses).map(gradeEntries => {
-      // Sort entries by created_at date (newest first)
-      const sortedEntries = [...gradeEntries].sort((a, b) => 
-        new Date(b.created) - new Date(a.created)
-      );
-      // Return the most recent entry
-      return sortedEntries[0];
-    });
-    
-    return acc;
-  }, {});
-
-  // Sort semesters by year and term
-  return Object.entries(sortedGrades)
-    .sort(([semesterA], [semesterB]) => {
-      const [yearA, termA] = getSemesterInfo(semesterA);
-      const [yearB, termB] = getSemesterInfo(semesterB);
+  const organizeGradesByTrimester = (gradesData) => {
+    // First, group grades by academic year, trimester and course code
+    const groupedGrades = gradesData.reduce((acc, grade) => {
+      // Extract year and month from created_at date for precise sorting
+      const gradeDate = new Date(grade.created_at);
+      const academicYear = gradeDate.getFullYear();
+      const month = gradeDate.getMonth();
       
-      if (yearA !== yearB) {
-        return yearB - yearA; // Sort by year descending
+      // Create a unique semester identifier that includes both year and term
+      const semester = `Academic Term ${grade.academic_term} (${academicYear})`;
+      const courseKey = `${grade.course_code}-${grade.course_description}`;
+      
+      if (!acc[semester]) {
+        acc[semester] = {};
       }
-      return termB - termA; // Sort by term descending within same year
-    })
-    .reduce((acc, [semester, grades]) => {
-      acc[semester] = grades;
+      
+      if (!acc[semester][courseKey]) {
+        acc[semester][courseKey] = [];
+      }
+      
+      // Add grade entry to the course array with month information
+      acc[semester][courseKey].push({
+        ...grade,
+        subject: grade.course_description,
+        courseCode: grade.course_code,
+        section: grade.section,
+        prelimGrade: grade.prelim_grade,
+        midtermGrade: grade.midterm_grade,
+        finalGrade: grade.final_grade,
+        remark: grade.remark,
+        teacher: grade.faculty_name,
+        created: grade.created_at,
+        updated: grade.updated_at,
+        academicYear: academicYear,
+        academicTerm: grade.academic_term,
+        month: month // Add month for sorting
+      });
+      
       return acc;
     }, {});
-};
+
+    // Sort grades within each course by date (newest first)
+    const sortedGrades = Object.entries(groupedGrades).reduce((acc, [semester, courses]) => {
+      acc[semester] = Object.values(courses).map(gradeEntries => {
+        const sortedEntries = [...gradeEntries].sort((a, b) => {
+          // First sort by year
+          if (a.academicYear !== b.academicYear) {
+            return b.academicYear - a.academicYear;
+          }
+          // Then by month
+          if (a.month !== b.month) {
+            return b.month - a.month;
+          }
+          // Finally by created date
+          return new Date(b.created) - new Date(a.created);
+        });
+        return sortedEntries[0];
+      });
+      
+      return acc;
+    }, {});
+
+    // Sort semesters by year and term
+    return Object.entries(sortedGrades)
+      .sort(([semesterA], [semesterB]) => {
+        const [yearA, termA] = getSemesterInfo(semesterA);
+        const [yearB, termB] = getSemesterInfo(semesterB);
+        
+        if (yearA !== yearB) {
+          return yearB - yearA; // Sort by year descending
+        }
+        return termB - termA; // Sort by term descending within same year
+      })
+      .reduce((acc, [semester, grades]) => {
+        acc[semester] = grades;
+        return acc;
+      }, {});
+  };
+
+  // Add search functionality
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredGrades(grades);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = Object.entries(grades).reduce((acc, [semester, semesterGrades]) => {
+      const matchingGrades = semesterGrades.filter(grade => 
+        grade.courseCode.toLowerCase().includes(query) ||
+        grade.subject.toLowerCase().includes(query) ||
+        grade.section.toLowerCase().includes(query)
+      );
+
+      if (matchingGrades.length > 0) {
+        acc[semester] = matchingGrades;
+      }
+
+      return acc;
+    }, {});
+
+    setFilteredGrades(filtered);
+  }, [searchQuery, grades]);
 
 const getSemesterInfo = (semester) => {
   const yearMatch = semester.match(/\((\d{4})\)/);
@@ -502,95 +539,162 @@ const getSemesterInfo = (semester) => {
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
+  const renderGradesContent = () => (
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-4">
+          {selectedSemester ? (
+            <>
+              {selectedSemester}
+              <span className="text-lg font-normal text-gray-600 ml-2">
+                {getSemesterInfo(selectedSemester)[0]} - Term {getSemesterInfo(selectedSemester)[1]}
+              </span>
+            </>
+          ) : (
+            'Select a Semester'
+          )}
+        </h1>
+        
+        {/* Search Input */}
+        <div className="relative w-full md:w-96 mb-4">
+          <input
+            type="text"
+            placeholder="Search by course code, name, or section..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 pr-10 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Search className="absolute right-3 top-2.5 text-gray-400" size={20} />
+        </div>
+      </div>
+      
+      {selectedSemester && (
+        <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="p-3 text-left">Course</th>
+                <th className="p-3 text-center">Section</th>
+                <th className="p-3 text-center">Prelim</th>
+                <th className="p-3 text-center">Midterm</th>
+                <th className="p-3 text-center">Final</th>
+                <th className="p-3 text-center">Remarks</th>
+                <th className="p-3 text-center">Faculty Name</th>
+                <th className="p-3 text-center">GWA</th>
+                <th className="p-3 text-center">Last Updated</th>
+                <th className="p-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(searchQuery ? filteredGrades[selectedSemester] : grades[selectedSemester])?.map((course, index) => (
+                <tr key={index} className="border-b hover:bg-gray-50 transition-colors">
+                  <td className="p-3">
+                    <div className="font-medium">{course.courseCode}</div>
+                    <div className="text-sm text-gray-600">{course.subject}</div>
+                  </td>
+                  <td className="p-3 text-center">{course.section}</td>
+                  <td className="p-3 text-center">
+                    <span className={getGradeColor(course.prelimGrade)}>
+                      {course.prelimGrade || 'N/A'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className={getGradeColor(course.midtermGrade)}>
+                      {course.midtermGrade || 'N/A'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className={getGradeColor(course.finalGrade)}>
+                      {course.finalGrade || 'N/A'}
+                    </span>
+                  </td>
+                  <td className={`p-3 text-center ${getRemarkColor(course.remark)}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
+                      course.remark === 'PASSED' ? 'bg-green-100 text-green-800' :
+                      course.remark === 'INC' ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {course.remark || 'Pending'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="text-sm">{course.teacher}</div>
+                  </td>
+                  <td className={`p-3 text-center ${getGradeColor(calculateCourseGWA(course))}`}>
+                    <span className="font-medium">{calculateCourseGWA(course)}</span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="text-sm text-gray-600">
+                      {formatDate(course.updated)}
+                    </div>
+                  </td>
+                  <td className="p-3 text-center">
+                    <button
+                      onClick={() => {
+                        const history = Object.values(grades).flatMap(semesterGrades =>
+                          semesterGrades.filter(g => 
+                            g.courseCode === course.courseCode && 
+                            g.subject === course.subject
+                          )
+                        );
+                        setSelectedCourseHistory(history);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-full hover:bg-blue-50"
+                      title="View Grade History"
+                    >
+                      <FileClock size={20} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {(!searchQuery ? grades[selectedSemester] : filteredGrades[selectedSemester])?.length === 0 && (
+                <tr>
+                  <td colSpan="10" className="p-8 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Search size={24} className="text-gray-400" />
+                      <p className="font-medium">No grades found</p>
+                      {searchQuery && (
+                        <p className="text-sm text-gray-400">
+                          Try adjusting your search query or select a different semester
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+  
+      {/* Grade History Modal */}
+      {selectedCourseHistory && (
+        <GradeHistoryModal 
+          courseHistory={selectedCourseHistory}
+          onClose={() => setSelectedCourseHistory(null)}
+        />
+      )}
+  
+      {/* No Semester Selected Message */}
+      {!selectedSemester && (
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <GraduationCap size={48} className="mx-auto text-gray-400 mb-4" />
+          <h3 className="text-xl font-medium text-gray-900 mb-2">No Semester Selected</h3>
+          <p className="text-gray-600">
+            Please select a semester from the menu to view your grades
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   // Render content based on active view
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard':
         return <DashboardContent />;
-        case 'grades':
-          return (
-            <div className="space-y-6">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold">
-                  {selectedSemester ? (
-                    <>
-                      {selectedSemester}
-                      <span className="text-lg font-normal text-gray-600 ml-2">
-                        {getSemesterInfo(selectedSemester)[0]} - Term {getSemesterInfo(selectedSemester)[1]}
-                      </span>
-                    </>
-                  ) : (
-                    'Select a Semester'
-                  )}
-                </h1>
-              </div>
-              
-              {selectedSemester && (
-                <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="p-3 text-left">Course</th>
-                        <th className="p-3 text-center">Section</th>
-                        <th className="p-3 text-center">Prelim</th>
-                        <th className="p-3 text-center">Midterm</th>
-                        <th className="p-3 text-center">Final</th>
-                        <th className="p-3 text-center">Remarks</th>
-                        <th className="p-3 text-center">Faculty Name</th>
-                        <th className="p-3 text-center">GWA</th>
-                        <th className="p-3 text-center">Last Updated</th>
-                        <th className="p-3 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {grades[selectedSemester]?.map((course, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-3">
-                            <div>{course.courseCode}</div>
-                            <div className="text-sm text-gray-600">{course.subject}</div>
-                          </td>
-                          <td className="p-3 text-center">{course.section}</td>
-                          <td className="p-3 text-center">{course.prelimGrade}</td>
-                          <td className="p-3 text-center">{course.midtermGrade}</td>
-                          <td className="p-3 text-center">{course.finalGrade}</td>
-                          <td className={`p-3 text-center ${getRemarkColor(course.remark)}`}>
-                            {course.remark}
-                          </td>
-                          <td className="p-3 text-center">{course.teacher}</td>
-                          <td className={`p-3 text-center ${getGradeColor(calculateCourseGWA(course))}`}>
-                            {calculateCourseGWA(course)}
-                          </td>
-                          <td className="p-3 text-center">{formatDate(course.updated)}</td>
-                          <td className="p-3 text-center">
-                            <button
-                              onClick={() => {
-                                const history = Object.values(grades).flatMap(semesterGrades =>
-                                  semesterGrades.filter(g => 
-                                    g.courseCode === course.courseCode && 
-                                    g.subject === course.subject
-                                  )
-                                );
-                                setSelectedCourseHistory(history);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 underline"
-                            >
-                              <FileClock size={24}></FileClock>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {selectedCourseHistory && (
-                <GradeHistoryModal 
-                  courseHistory={selectedCourseHistory}
-                  onClose={() => setSelectedCourseHistory(null)}
-                />
-              )}
-            </div>
-        );
+      case 'grades':
+        return renderGradesContent();
       case 'mailbox':
         return (
           <div className="bg-white p-6 rounded-lg shadow-md">
