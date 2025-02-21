@@ -15,6 +15,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import LoadingSpinner from '../Loadinganimation/Loading';
 import sendEmail,{ EmailTemplates } from '../Sendemail/Sendemail';
+import EmailQuotaDisplay from '../AlertEmailQuote/EmailQuotaDisplay';
 
 const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
@@ -1167,8 +1168,10 @@ const renderUploadView = () => {
           {/* Loading States */}
           {(isUploading || isEmailSending) && renderLoadingStates()}
         </div>
+        
       )}
-
+      {/* Add Email Quota Display */}
+      <EmailQuotaDisplay csvRowCount={csvData.length} />
       {/* Upload Status Messages */}
       {uploadStatus && (
         <div className={`p-4 rounded-md ${
