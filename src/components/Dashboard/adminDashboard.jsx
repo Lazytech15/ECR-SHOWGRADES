@@ -212,7 +212,7 @@ const AdminDashboard = ({ onLogout }) => {
         },
         body: JSON.stringify({
           action: 'delete-teacher',
-          teacher_id: teacherId
+          teacherId: teacherId
         })
       });
       
