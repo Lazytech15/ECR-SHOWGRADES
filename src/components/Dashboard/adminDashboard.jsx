@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, UserPlus, RefreshCw, Search, UserX, GraduationCap, LogOut, Users, BookOpen } from 'lucide-react';
+import { Trash2, UserPlus, RefreshCw, Search, Edit, GraduationCap, LogOut, Users, BookOpen } from 'lucide-react';
 import axios from 'axios';
 import sendEmail, { EmailTemplates } from '../Sendemail/Sendemail';
+import { StudentEditModal, TeacherEditModal, GradeEditModal } from '../UpdateEditData/EditModal';
 
 const AdminDashboard = ({ onLogout }) => {
   const [students, setStudents] = useState([]);
@@ -28,6 +29,9 @@ const AdminDashboard = ({ onLogout }) => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [selectedTeachers, setSelectedTeachers] = useState([]);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [editingGrade, setEditingGrade] = useState(null);
 
   const API_BASE_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functions/service-database';
 
@@ -570,12 +574,20 @@ const AdminDashboard = ({ onLogout }) => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.username}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.password}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => handleDeleteStudent(student.student_id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingStudent(student)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Edit size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStudent(student.student_id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -619,6 +631,7 @@ const AdminDashboard = ({ onLogout }) => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -637,13 +650,22 @@ const AdminDashboard = ({ onLogout }) => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.teacher_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.personal_email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.username}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{teacher.password}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => handleDeleteTeacher(teacher.teacher_id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingTeacher(teacher)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Edit size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTeacher(teacher.teacher_id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -807,13 +829,22 @@ const AdminDashboard = ({ onLogout }) => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.faculty_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.ecr_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleDeleteGrade(grade.ecr_name, grade.student_num, grade.course_code)}
-                        className="text-red-600 hover:text-red-900 transition-colors"
-                        title="Delete grade"
-                      >
-                        <Trash2 size={20} />
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingGrade(grade)}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          title="Edit grade"
+                        >
+                          <Edit size={20} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGrade(grade.ecr_name, grade.student_num, grade.course_code)}
+                          className="text-red-600 hover:text-red-900 transition-colors"
+                          title="Delete grade"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -971,6 +1002,39 @@ const AdminDashboard = ({ onLogout }) => {
             </button>
           </div>
         </div>
+
+        {editingStudent && (
+          <StudentEditModal
+            student={editingStudent}
+            onClose={() => setEditingStudent(null)}
+            onUpdate={() => {
+              fetchAllData();
+              setEditingStudent(null);
+            }}
+          />
+        )}
+
+        {editingTeacher && (
+          <TeacherEditModal
+            teacher={editingTeacher}
+            onClose={() => setEditingTeacher(null)}
+            onUpdate={() => {
+              fetchAllData();
+              setEditingTeacher(null);
+            }}
+          />
+        )}
+
+        {editingGrade && (
+          <GradeEditModal
+            grade={editingGrade}
+            onClose={() => setEditingGrade(null)}
+            onUpdate={() => {
+              fetchAllData();
+              setEditingGrade(null);
+            }}
+          />
+        )}
 
         {/* Add Teacher Modal */}
         {showAddTeacher && (

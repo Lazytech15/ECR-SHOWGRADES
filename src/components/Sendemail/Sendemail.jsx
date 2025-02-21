@@ -5,7 +5,124 @@ const API_URL = 'https://ecr-api-connection-database.netlify.app/.netlify/functi
 export const EmailTemplates = {
   GRADE_NOTIFICATION: 'grade-notification',
   WELCOME_EMAIL: 'welcome-email',
-  TEACHER_REGISTRATION: 'teacher-registration'
+  TEACHER_REGISTRATION: 'teacher-registration',
+  STUDENT_UPDATE: 'student-update',
+  TEACHER_UPDATE: 'teacher-update'
+};
+
+const createStudentUpdateEmail = (data) => {
+  const getUpdatedFields = () => {
+    const updates = [];
+    if (data.updates.section) updates.push(`Section: ${data.updates.section}`);
+    if (data.updates.trimester) updates.push(`Trimester: ${data.updates.trimester}`);
+    if (data.updates.course) updates.push(`Course: ${data.updates.course}`);
+    if (data.updates.passwordChanged) updates.push(`New Password: ${data.updates.newPassword}`);
+    return updates;
+  };
+
+  const content = `
+    <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; line-height: 1.6;">
+      <div style="background-color: #003366; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="color: #ffffff; font-size: 22px; font-weight: 600; margin: 0;">Student Information Update</h1>
+      </div>
+      
+      <div style="padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Dear ${data.studentName},
+        </p>
+        
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Your student information has been updated with the following changes:
+        </p>
+        
+        <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${getUpdatedFields().map(update => `
+              <li style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">${update}</li>
+            `).join('')}
+          </ul>
+        </div>
+        
+        ${data.updates.passwordChanged ? `
+        <div style="margin-top: 16px; padding: 12px; background-color: #fff4e5; border-radius: 4px;">
+          <p style="margin: 0; color: #b45309; font-size: 14px;">
+            Please keep your new password secure and do not share it with anyone.
+          </p>
+        </div>
+        ` : ''}
+        
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Please verify these changes and contact the administration if you notice any discrepancies.
+        </p>
+        
+        <div style="text-align: left; color: #4b5563;">
+          <p style="margin: 0;">Best regards,</p>
+          <p style="margin: 8px 0 0 0; font-weight: 600;">ECR Administration Team</p>
+        </div>
+      </div>
+    </div>`;
+
+  return {
+    content,
+    subject: 'Student Information Update Notification'
+  };
+};
+
+const createTeacherUpdateEmail = (data) => {
+  const getUpdatedFields = () => {
+    const updates = [];
+    if (data.updates.nameChanged) updates.push(`Name updated to: ${data.teacherName}`);
+    if (data.updates.emailChanged) updates.push(`Email updated to: ${data.personalEmail}`);
+    if (data.updates.passwordChanged) updates.push(`New Password: ${data.updates.newPassword}`);
+    return updates;
+  };
+
+  const content = `
+    <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; line-height: 1.6;">
+      <div style="background-color: #003366; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="color: #ffffff; font-size: 22px; font-weight: 600; margin: 0;">Teacher Information Update</h1>
+      </div>
+      
+      <div style="padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Dear ${data.teacherName},
+        </p>
+        
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Your account information has been updated with the following changes:
+        </p>
+        
+        <div style="background-color: #f8fafc; padding: 24px; border-radius: 6px; margin-bottom: 24px;">
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${getUpdatedFields().map(update => `
+              <li style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">${update}</li>
+            `).join('')}
+          </ul>
+        </div>
+        
+        ${data.updates.passwordChanged ? `
+        <div style="margin-top: 16px; padding: 12px; background-color: #fff4e5; border-radius: 4px;">
+          <p style="margin: 0; color: #b45309; font-size: 14px;">
+            Please keep your new password secure and do not share it with anyone.
+          </p>
+        </div>
+        ` : ''}
+        
+        <p style="font-size: 16px; margin: 0 0 24px 0;">
+          Please verify these changes and contact the administration if you notice any discrepancies.
+        </p>
+        
+        <div style="text-align: left; color: #4b5563;">
+          <p style="margin: 0;">Best regards,</p>
+          <p style="margin: 8px 0 0 0; font-weight: 600;">ECR Administration Team</p>
+        </div>
+      </div>
+    </div>`;
+
+  return {
+    content,
+    subject: 'Teacher Information Update Notification'
+  };
 };
 
 export const sendEmail = async ({ template, data, onProgress, onError }) => {
@@ -23,15 +140,21 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
       case EmailTemplates.TEACHER_REGISTRATION:
         ({ content: emailContent, subject } = createTeacherRegistrationEmail(data));
         break;
+      case EmailTemplates.STUDENT_UPDATE:
+        ({ content: emailContent, subject } = createStudentUpdateEmail(data));
+        break;
+      case EmailTemplates.TEACHER_UPDATE:
+        ({ content: emailContent, subject } = createTeacherUpdateEmail(data));
+        break;
       default:
         throw new Error('Invalid email template');
     }
 
     if (onProgress) {
       onProgress({
-        teacherId: data.teacherId,
-        name: data.teacherName,
-        status: 'sending'
+        status: 'sending',
+        ...(data.teacherId && { teacherId: data.teacherId }),
+        ...(data.teacherName && { name: data.teacherName })
       });
     }
 
@@ -43,7 +166,7 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
       body: JSON.stringify({
         type: 'email',
         data: {
-          to: data.email,
+          to: data.email || data.personalEmail,
           subject,
           content: emailContent
         }
@@ -62,9 +185,9 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
 
     if (onProgress) {
       onProgress({
-        teacherId: data.teacherId,
-        name: data.teacherName,
-        status: 'sent'
+        status: 'sent',
+        ...(data.teacherId && { teacherId: data.teacherId }),
+        ...(data.teacherName && { name: data.teacherName })
       });
     }
 
@@ -72,9 +195,9 @@ export const sendEmail = async ({ template, data, onProgress, onError }) => {
   } catch (error) {
     if (onError) {
       onError({
-        teacherId: data.teacherId,
-        name: data.teacherName,
-        error: error.message
+        error: error.message,
+        ...(data.teacherId && { teacherId: data.teacherId }),
+        ...(data.teacherName && { name: data.teacherName })
       });
     }
     throw error;
